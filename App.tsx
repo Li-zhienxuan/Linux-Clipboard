@@ -1,9 +1,27 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X } from 'lucide-react';
+import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X, Minimize2 } from 'lucide-react';
 import { ClipboardItem, ContentType, TimeMode } from './types';
 import { ClipboardCard } from './components/ClipboardCard';
 import { analyzeImage, suggestTags } from './services/geminiService';
+
+// Electron API 类型声明
+declare global {
+  interface Window {
+    electronAPI?: {
+      readClipboard: () => Promise<{ type: string; content: string } | null>;
+      toggleWindow: () => void;
+      minimizeToTray: () => void;
+      onClipboardChange: (callback: (data: { type: string; content: string; timestamp: number }) => void) => (() => void) | undefined;
+      getSettings: () => Promise<any>;
+      setSetting: (key: string, value: any) => Promise<void>;
+      getApiKey: () => Promise<string>;
+      setApiKey: (apiKey: string) => Promise<void>;
+      platform: string;
+      isElectron: boolean;
+    };
+  }
+}
 
 const App: React.FC = () => {
   const [items, setItems] = useState<ClipboardItem[]>([]);
@@ -40,6 +58,26 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('smart_clipboard_items');
     if (saved) {
       setItems(JSON.parse(saved));
+    }
+  }, []);
+
+  // Electron 环境：监听主进程的剪贴板变化
+  useEffect(() => {
+    if (window.electronAPI?.isElectron) {
+      const unsubscribe = window.electronAPI.onClipboardChange((data) => {
+        if (data.type === 'image') {
+          handleAddItem('Pasted Image', 'image', data.content);
+        } else {
+          const type: ContentType = data.content.includes('http')
+            ? 'link'
+            : (data.content.includes('{') || data.content.includes('npm') ? 'code' : 'text');
+          handleAddItem(data.content, type);
+        }
+      });
+
+      return () => {
+        unsubscribe?.();
+      };
     }
   }, []);
 
@@ -124,24 +162,45 @@ const App: React.FC = () => {
   }, [items]);
 
   const readClipboard = async () => {
-    try {
-      const clipboardItems = await navigator.clipboard.read();
-      for (const item of clipboardItems) {
-        const imageType = item.types.find(t => t.startsWith('image/'));
-        if (imageType) {
-          const blob = await item.getType(imageType);
-          const reader = new FileReader();
-          reader.onloadend = () => handleAddItem('Pasted Image', 'image', reader.result as string);
-          reader.readAsDataURL(blob);
-        } else if (item.types.includes('text/plain')) {
-          const blob = await item.getType('text/plain');
-          const text = await blob.text();
-          const type: ContentType = text.includes('http') ? 'link' : (text.includes('{') || text.includes('npm') ? 'code' : 'text');
-          handleAddItem(text, type);
+    // Electron 环境
+    if (window.electronAPI?.isElectron) {
+      try {
+        const data = await window.electronAPI.readClipboard();
+        if (data) {
+          if (data.type === 'image') {
+            handleAddItem('Pasted Image', 'image', `data:image/png;base64,${data.content}`);
+          } else {
+            const type: ContentType = data.content.includes('http')
+              ? 'link'
+              : (data.content.includes('{') || data.content.includes('npm') ? 'code' : 'text');
+            handleAddItem(data.content, type);
+          }
         }
+      } catch (err) {
+        console.error('Electron clipboard read error:', err);
+        notify("Failed to read clipboard", 'error');
       }
-    } catch (err) {
-      notify("Clipboard permission required", 'error');
+    } else {
+      // Web 环境（原有逻辑）
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const reader = new FileReader();
+            reader.onloadend = () => handleAddItem('Pasted Image', 'image', reader.result as string);
+            reader.readAsDataURL(blob);
+          } else if (item.types.includes('text/plain')) {
+            const blob = await item.getType('text/plain');
+            const text = await blob.text();
+            const type: ContentType = text.includes('http') ? 'link' : (text.includes('{') || text.includes('npm') ? 'code' : 'text');
+            handleAddItem(text, type);
+          }
+        }
+      } catch (err) {
+        notify("Clipboard permission required", 'error');
+      }
     }
   };
 
@@ -375,6 +434,15 @@ const App: React.FC = () => {
           <span className="flex items-center gap-2 group cursor-default">
             <span className="bg-white/5 px-2 py-1 rounded border border-white/5 group-hover:text-white transition-colors">⌘ V</span> Direct Add
           </span>
+          {window.electronAPI?.isElectron && (
+            <button
+              onClick={() => window.electronAPI?.minimizeToTray()}
+              className="flex items-center gap-2 hover:text-gray-300 transition-colors cursor-pointer"
+              title="Minimize to Tray"
+            >
+              <span className="bg-white/5 px-2 py-1 rounded border border-white/5 group-hover:text-white transition-colors">⌘ W</span> Minimize
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-6">
            {timeValue && (

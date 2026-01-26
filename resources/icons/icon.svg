@@ -1,0 +1,30 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#gradient)"/>
+
+  <!-- Clipboard Icon -->
+  <rect x="80" y="60" width="96" height="140" rx="8" fill="white" fill-opacity="0.95"/>
+
+  <!-- Clipboard Clip -->
+  <rect x="110" y="50" width="36" height="24" rx="4" fill="white"/>
+  <rect x="116" y="56" width="24" height="12" rx="2" fill="#4F46E5"/>
+
+  <!-- Document Lines -->
+  <rect x="96" y="90" width="64" height="8" rx="2" fill="#4F46E5"/>
+  <rect x="96" y="110" width="64" height="8" rx="2" fill="#818CF8"/>
+  <rect x="96" y="130" width="48" height="8" rx="2" fill="#818CF8"/>
+  <rect x="96" y="150" width="56" height="8" rx="2" fill="#818CF8"/>
+
+  <!-- Sparkle Icon -->
+  <path d="M180 70L185 85L200 90L185 95L180 110L175 95L160 90L175 85Z" fill="#FBBF24"/>
+  <circle cx="200" cy="120" r="6" fill="#FBBF24"/>
+  <path d="M190 150L193 158L201 161L193 164L190 172L187 164L179 161L187 158Z" fill="#FBBF24"/>
+
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+</svg>

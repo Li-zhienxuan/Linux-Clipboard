@@ -1,7 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
+// 辅助函数：获取 API Key
+const getApiKey = async (): Promise<string> => {
+  // Electron 环境：从存储获取 API Key
+  if (typeof window !== 'undefined' && (window as any).electronAPI?.isElectron) {
+    const apiKey = await (window as any).electronAPI.getApiKey();
+    if (apiKey) return apiKey;
+  }
+
+  // Web 环境或降级：使用环境变量
+  if (typeof process !== 'undefined' && process.env?.API_KEY) {
+    return process.env.API_KEY;
+  }
+
+  throw new Error('API Key not found. Please set it in settings.');
+};
+
 export const analyzeImage = async (base64Image: string): Promise<{ description: string; tags: string[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = await getApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -46,7 +63,8 @@ export const analyzeImage = async (base64Image: string): Promise<{ description: 
 };
 
 export const suggestTags = async (text: string): Promise<string[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = await getApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

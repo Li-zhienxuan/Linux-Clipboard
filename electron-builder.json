@@ -1,0 +1,54 @@
+{
+  "appId": "com.smartclipboard.pro",
+  "productName": "Smart Clipboard Pro",
+  "directories": {
+    "output": "release",
+    "buildResources": "resources"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "dist-electron/main.js"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "deb",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Utility",
+    "icon": "resources/icons/icon.png",
+    "maintainer": "Smart Clipboard Pro <admin@smartclipboard.pro>",
+    "description": "AI-powered clipboard manager with intelligent search and organization",
+    "desktop": {
+      "Name": "Smart Clipboard Pro",
+      "Comment": "Intelligent clipboard management with AI-powered search",
+      "Categories": "Utility;Office;",
+      "Keywords": "clipboard;manager;ai;search;",
+      "StartupNotify": true
+    }
+  },
+  "deb": {
+    "depends": [
+      "libgtk-3-0",
+      "libnotify4",
+      "libnss3",
+      "libxss1",
+      "libxtst6",
+      "xdg-utils",
+      "libatspi2.0-0",
+      "libuuid1",
+      "libappindicator3-1",
+      "libsecret-1-0"
+    ]
+  },
+  "npmRebuild": false
+}
