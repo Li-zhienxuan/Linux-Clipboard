@@ -1,0 +1,28 @@
+========================================
+Linux-Clipboard v0.3.3 发布信息
+========================================
+
+发布时间: 2026-01-27 21:30:23 (CST, UTC+8)
+版本: v0.3.3
+
+安装包:
+  文件名: linux-clipboard_0.3.3_amd64.deb
+  大小: 75M
+  本地路径: /Code/Dev/Linux-Clipboard/release/linux-clipboard_0.3.3_amd64.deb
+
+下载链接:
+  GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.3/linux-clipboard_0.3.3_amd64.deb
+  或使用 wget:
+  wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.3/linux-clipboard_0.3.3_amd64.deb
+
+安装命令:
+  sudo dpkg -i linux-clipboard_0.3.3_amd64.deb
+
+仓库链接:
+  GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard
+  CNB: https://cnb.cool/ZhienXuan/Linux-Clipboard
+
+Release Notes:
+  查看 RELEASE_NOTES_v0.3.3.md
+
+========================================
