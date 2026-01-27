@@ -169,6 +169,7 @@ show_release_info() {
 generate_release_notes() {
     local version=$1
     local notes_file="RELEASE_NOTES_v${version}.md"
+    local prev_version=$(echo $version | awk -F. '{print $1"."$2"."($3-1)}')
 
     log_info "生成发布说明: $notes_file"
 
@@ -251,7 +252,7 @@ sudo apt-get install -f -y
 
 ---
 
-**完整变更日志**: [v$(echo $version | awk -F. '{print $1"."$2"."($3-1)}"...v${version}](https://github.com/你的用户名/Linux-Clipboard/compare/v$(echo $version | awk -F. '{print $1"."$2"."($3-1)}')...v${version})
+**完整变更日志**: [v${prev_version}...v${version}](https://github.com/你的用户名/Linux-Clipboard/compare/v${prev_version}...v${version})
 EOF
 
     log_success "发布说明已生成: $notes_file"

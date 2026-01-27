@@ -8,6 +8,10 @@ release/
 build/
 out/
 
+# Backup directories
+release-*-backup/
+*-backup/
+
 # Electron
 *.log
 *.asar

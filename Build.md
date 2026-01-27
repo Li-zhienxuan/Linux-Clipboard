@@ -6,7 +6,7 @@
 
 ## Version 0.3.3 - 构建记录
 
-**构建时间**: 2026-01-28 03:56:18 (Beijing Time, UTC+8)
+**构建时间**: 2026-01-27 20:30:00 (CST, UTC+8)
 
 ### 版本更新内容
 
@@ -140,7 +140,7 @@ ls -lh release/linux-unpacked/resources/icons/
 
 ## Version 0.3.2 - 构建记录
 
-**构建时间**: 2026-01-28 03:51:27 (Beijing Time)
+**构建时间**: 2026-01-27 20:30:00 (CST, UTC+8)
 
 ### 版本更新内容
 
