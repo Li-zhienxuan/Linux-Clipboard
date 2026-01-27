@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ###############################################################################
-# Linux-Clipboard 自动化发布脚本（支持 CNB Token）
+# Linux-Clipboard 自动化发布脚本（交互式 Token 输入）
 # 功能: 自动构建、推送到 GitHub/CNB、创建 Release
-# 用法: ./auto-release.sh [version] [github_token] [cnb_token]
+# 用法: ./auto-release.sh [version]
 ###############################################################################
 
 set -e  # 遇到错误立即退出
@@ -15,6 +15,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m'
 
 log_info() {
@@ -47,19 +48,64 @@ get_current_version() {
     grep '"version"' package.json | head -1 | cut -d'"' -f4
 }
 
-# 从配置文件读取 Token
-load_tokens() {
+# 交互式输入 Token（不回显）
+prompt_token() {
+    local token_name=$1
+    local token_var=$2
+    local prompt_msg=$3
+
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${CYAN}  ${token_name} Token 配置${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}获取 Token:${NC}"
+    echo "  1. 访问 ${prompt_msg}"
+    echo "  2. 点击 'Add new token' 或 'Generate new token'"
+    echo "  3. 勾选必要的权限 (api, read_repository, write_repository)"
+    echo "  4. 生成并复制 Token"
+    echo ""
+    echo -e "${RED}⚠️  注意: Token 只会显示一次，请妥善保管！${NC}"
+    echo ""
+
+    # 交互式输入（不回显）
+    read -s -p "请输入 ${token_name} Token (输入后按 Enter): " token_value
+    echo ""
+    echo ""
+
+    # 验证 Token 不为空
+    while [ -z "$token_value" ]; do
+        echo -e "${RED}Token 不能为空！${NC}"
+        read -s -p "请重新输入 ${token_name} Token: " token_value
+        echo ""
+    done
+
+    # 设置环境变量
+    export "$token_var"="$token_value"
+
+    echo -e "${GREEN}✓ ${token_name} Token 已设置${NC}"
+    echo ""
+}
+
+# 从配置文件读取 Token（如果存在）
+load_tokens_from_files() {
+    local loaded=false
+
     # 从 .cnb-token 文件读取 CNB Token
     if [ -f ".cnb-token" ]; then
-        CNB_TOKEN=$(cat .cnb-token | tr -d ' \n')
-        export CNB_TOKEN
+        export CNB_TOKEN=$(cat .cnb-token | tr -d ' \n')
+        log_info "从 .cnb-token 文件加载 CNB Token"
+        loaded=true
     fi
 
     # 从 .github-token 文件读取 GitHub Token
     if [ -f ".github-token" ]; then
-        GITHUB_TOKEN=$(cat .github-token | tr -d ' \n')
-        export GITHUB_TOKEN
+        export GITHUB_TOKEN=$(cat .github-token | tr -d ' \n')
+        log_info "从 .github-token 文件加载 GitHub Token"
+        loaded=true
     fi
+
+    return 0
 }
 
 ###############################################################################
@@ -68,8 +114,6 @@ load_tokens() {
 
 main() {
     local version=$1
-    local github_token=$2
-    local cnb_token=$3
 
     echo ""
     log_success "========================================"
@@ -79,18 +123,6 @@ main() {
     log_info "开始时间: $(get_beijing_time)"
     echo ""
 
-    # 加载配置文件中的 Token
-    load_tokens
-
-    # 使用参数中的 Token 覆盖配置文件
-    if [ -n "$github_token" ]; then
-        export GITHUB_TOKEN="$github_token"
-    fi
-
-    if [ -n "$cnb_token" ]; then
-        export CNB_TOKEN="$cnb_token"
-    fi
-
     # 如果没有提供版本号，使用当前版本
     if [ -z "$version" ]; then
         version=$(get_current_version)
@@ -98,6 +130,82 @@ main() {
     else
         log_info "使用指定版本: $version"
     fi
+    echo ""
+
+    # 尝试从文件加载 Token
+    load_tokens_from_files
+
+    # 如果没有从文件加载到 Token，提示用户是否交互式输入
+    if [ -z "$GITHUB_TOKEN" ] || [ -z "$CNB_TOKEN" ]; then
+        echo ""
+        echo -e "${YELLOW}检测到 Token 未配置${NC}"
+        echo ""
+        echo "你可以选择:"
+        echo "  1) 交互式输入 Token（推荐，安全）"
+        echo "  2) 跳过 Token 配置（不创建 Release / 不推送到 CNB）"
+        echo "  3) 取消发布"
+        echo ""
+        read -p "请选择 (1/2/3): " choice
+        echo ""
+
+        case $choice in
+            1)
+                # GitHub Token
+                if [ -z "$GITHUB_TOKEN" ]; then
+                    prompt_token "GitHub" "GITHUB_TOKEN" "https://github.com/settings/tokens"
+                fi
+
+                # CNB Token
+                if [ -z "$CNB_TOKEN" ]; then
+                    prompt_token "CNB" "CNB_TOKEN" "https://cnb.cool/-/profile/personal_access_tokens"
+                fi
+                ;;
+            2)
+                log_warn "跳过 Token 配置"
+                log_info "将不会:")
+                echo "  - 创建 GitHub Release（需要手动操作）"
+                echo "  - 推送到 CNB（需要手动推送）"
+                echo ""
+                read -p "是否继续？(y/N): " confirm
+                echo ""
+                if [[ ! $confirm =~ ^[Yy]$ ]]; then
+                    log_info "发布已取消"
+                    exit 0
+                fi
+                ;;
+            3)
+                log_info "发布已取消"
+                exit 0
+                ;;
+            *)
+                log_error "无效选择"
+                exit 1
+                ;;
+        esac
+    else
+        log_success "Token 配置文件已找到"
+    fi
+    echo ""
+
+    # 显示 Token 状态
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}  Token 状态${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    if [ -n "$GITHUB_TOKEN" ]; then
+        echo -e "  GitHub Token: ${GREEN}✓ 已配置${NC}"
+    else
+        echo -e "  GitHub Token: ${YELLOW}✗ 未配置${NC} (将跳过 Release 创建)"
+    fi
+
+    if [ -n "$CNB_TOKEN" ]; then
+        echo -e "  CNB Token:    ${GREEN}✓ 已配置${NC}"
+    else
+        echo -e "  CNB Token:    ${YELLOW}✗ 未配置${NC} (将跳过 CNB 推送)"
+    fi
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
     # Step 1: 检查工作区状态
@@ -154,31 +262,8 @@ main() {
     log_step "5/9 推送代码到 CNB..."
 
     if [ -z "$CNB_TOKEN" ]; then
-        log_warn "未提供 CNB Token"
-        echo ""
-        log_info "请设置 CNB Token 以继续推送:"
-        echo ""
-        echo "方式 1: 创建 .cnb-token 文件"
-        echo "  echo 'your_cnb_token_here' > .cnb-token"
-        echo "  chmod 600 .cnb-token"
-        echo ""
-        echo "方式 2: 使用命令行参数"
-        echo "  ./auto-release.sh ${version} \$GITHUB_TOKEN your_cnb_token_here"
-        echo ""
-        echo "方式 3: 使用环境变量"
-        echo "  export CNB_TOKEN='your_cnb_token_here'"
-        echo "  ./auto-release.sh ${version}"
-        echo ""
-        log_info "获取 CNB Token: 访问 https://cnb.cool/-/profile/personal_access_tokens"
-        echo ""
-
-        read -p "是否继续跳过 CNB 推送？(y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "发布已取消"
-            exit 0
-        fi
-        log_warn "跳过 CNB 推送"
+        log_warn "未配置 CNB Token，跳过 CNB 推送"
+        log_info "如需推送到 CNB，请配置 CNB Token 后重新运行"
     else
         log_info "使用 Token 推送到 CNB..."
 
@@ -186,46 +271,43 @@ main() {
         local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
 
         # 推送代码
-        git push "$cnb_url" main
-
-        if [ $? -ne 0 ]; then
+        if git push "$cnb_url" main; then
+            log_success "已推送到 CNB"
+        else
             log_warn "推送到 CNB 失败（Token 可能无效）"
             log_info "请检查 Token 是否正确且有写入权限"
-        else
-            log_success "已推送到 CNB"
         fi
     fi
     echo ""
 
     # Step 6: 推送标签到 CNB
-    if [ -n "$CNB_TOKEN" ]; then
-        log_step "6/9 推送标签到 CNB..."
+    log_step "6/9 推送标签到 CNB..."
 
-        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
-        git push "$cnb_url" "v${version}" 2>/dev/null || \
-            log_warn "推送标签到 CNB 失败"
-
-        log_success "标签推送完成"
-        echo ""
+    if [ -z "$CNB_TOKEN" ]; then
+        log_warn "未配置 CNB Token，跳过标签推送"
     else
-        log_step "6/9 推送标签到 CNB..."
-        log_warn "跳过（未提供 CNB Token）"
-        echo ""
+        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
+
+        if git push "$cnb_url" "v${version}" 2>/dev/null; then
+            log_success "标签已推送到 CNB"
+        else
+            log_warn "推送标签到 CNB 失败"
+        fi
     fi
+    echo ""
 
     # Step 7: 创建 GitHub Release
     log_step "7/9 创建 GitHub Release..."
 
     if [ -z "$GITHUB_TOKEN" ]; then
-        log_warn "未提供 GitHub Token，跳过创建 Release"
+        log_warn "未配置 GitHub Token，跳过创建 Release"
+        echo ""
         log_info "手动创建 Release 步骤:"
         echo "  1. 访问: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/new"
         echo "  2. 选择标签: v${version}"
         echo "  3. 上传文件: release/linux-clipboard_${version}_amd64.deb"
         echo "  4. 点击 'Publish release'"
         echo ""
-        log_info "如需自动创建 Release，请提供 GitHub Token:"
-        echo "  ./auto-release.sh ${version} YOUR_GITHUB_TOKEN"
     else
         log_info "使用 GitHub API 创建 Release..."
 
@@ -272,6 +354,7 @@ main() {
                     log_success ".deb 文件上传成功"
                 else
                     log_warn ".deb 文件上传失败，请手动上传"
+                    echo "$upload_response" | head -3
                 fi
             fi
         else
@@ -281,8 +364,32 @@ main() {
     fi
     echo ""
 
-    # Step 8: 显示发布信息
-    log_step "8/9 生成发布信息..."
+    # Step 8: 保存 Token 到文件（可选）
+    log_step "8/9 保存 Token 配置..."
+
+    if [ -n "$GITHUB_TOKEN" ] && [ ! -f ".github-token" ]; then
+        read -p "是否要保存 GitHub Token 到 .github-token 文件？(y/N): " save_gh
+        echo ""
+        if [[ $save_gh =~ ^[Yy]$ ]]; then
+            echo "$GITHUB_TOKEN" > .github-token
+            chmod 600 .github-token
+            log_success "GitHub Token 已保存到 .github-token"
+        fi
+    fi
+
+    if [ -n "$CNB_TOKEN" ] && [ ! -f ".cnb-token" ]; then
+        read -p "是否要保存 CNB Token 到 .cnb-token 文件？(y/N): " save_cnb
+        echo ""
+        if [[ $save_cnb =~ ^[Yy]$ ]]; then
+            echo "$CNB_TOKEN" > .cnb-token
+            chmod 600 .cnb-token
+            log_success "CNB Token 已保存到 .cnb-token"
+        fi
+    fi
+    echo ""
+
+    # Step 9: 显示发布信息
+    log_step "9/9 生成发布信息..."
 
     # 创建发布信息文件
     cat > "RELEASE_INFO_v${version}.txt" << EOF
@@ -319,8 +426,7 @@ EOF
     log_success "发布信息已保存到: RELEASE_INFO_v${version}.txt"
     echo ""
 
-    # Step 9: 完成
-    log_step "9/9 发布完成！"
+    # 完成
     echo ""
     log_success "========================================"
     log_success "发布成功！"
@@ -337,23 +443,37 @@ EOF
     echo "  大小: $(du -h "release/linux-clipboard_${version}_amd64.deb" | cut -f1)"
     echo ""
 
-    echo -e "${CYAN}GitHub Release:${NC}"
-    echo "  URL: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/tag/v${version}"
+    echo -e "${CYAN}仓库状态:${NC}"
+    echo -e "  GitHub: ${GREEN}✓ 已推送${NC}"
+    if [ -n "$CNB_TOKEN" ]; then
+        echo -e "  CNB:    ${GREEN}✓ 已推送${NC}"
+    else
+        echo -e "  CNB:    ${YELLOW}✗ 未推送${NC}"
+    fi
+    echo ""
+
+    echo -e "${CYAN}Release 状态:${NC}"
+    if [ -n "$GITHUB_TOKEN" ]; then
+        echo -e "  GitHub Release: ${GREEN}✓ 已创建${NC}"
+    else
+        echo -e "  GitHub Release: ${YELLOW}✗ 未创建${NC} (需要手动操作)"
+    fi
+    echo ""
+
+    echo -e "${CYAN}下载链接:${NC}"
+    echo "  https://github.com/Li-zhienxuan/Linux-Clipboard/releases/tag/v${version}"
     echo ""
 
     echo -e "${CYAN}CNB 仓库:${NC}"
-    echo "  URL: https://cnb.cool/ZhienXuan/Linux-Clipboard"
+    echo "  https://cnb.cool/ZhienXuan/Linux-Clipboard"
     echo ""
 
-    echo -e "${CYAN}下载命令:${NC}"
-    echo "  wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v${version}/linux-clipboard_${version}_amd64.deb"
-    echo "  sudo dpkg -i linux-clipboard_${version}_amd64.deb"
-    echo ""
+    # 清理 Token 环境变量（安全）
+    unset GITHUB_TOKEN
+    unset CNB_TOKEN
 
-    echo -e "${CYAN}安装命令:${NC}"
-    echo "  sudo ./install.sh"
+    echo -e "${GREEN}✓ Token 已从内存中清除${NC}"
     echo ""
-
     log_success "所有任务已完成！"
     echo ""
 }
