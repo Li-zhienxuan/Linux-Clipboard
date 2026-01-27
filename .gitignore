@@ -33,3 +33,9 @@ Thumbs.db
 
 # Misc
 *.pem
+
+# Token files (安全：不要提交到 Git)
+.github-token
+.cnb-token
+.git-credentials
+*.token

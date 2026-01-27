@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ###############################################################################
-# Linux-Clipboard 自动化发布脚本
+# Linux-Clipboard 自动化发布脚本（支持 CNB Token）
 # 功能: 自动构建、推送到 GitHub/CNB、创建 Release
-# 用法: ./auto-release.sh [version] [github_token]
+# 用法: ./auto-release.sh [version] [github_token] [cnb_token]
 ###############################################################################
 
 set -e  # 遇到错误立即退出
@@ -47,6 +47,21 @@ get_current_version() {
     grep '"version"' package.json | head -1 | cut -d'"' -f4
 }
 
+# 从配置文件读取 Token
+load_tokens() {
+    # 从 .cnb-token 文件读取 CNB Token
+    if [ -f ".cnb-token" ]; then
+        CNB_TOKEN=$(cat .cnb-token | tr -d ' \n')
+        export CNB_TOKEN
+    fi
+
+    # 从 .github-token 文件读取 GitHub Token
+    if [ -f ".github-token" ]; then
+        GITHUB_TOKEN=$(cat .github-token | tr -d ' \n')
+        export GITHUB_TOKEN
+    fi
+}
+
 ###############################################################################
 # 主流程
 ###############################################################################
@@ -54,6 +69,7 @@ get_current_version() {
 main() {
     local version=$1
     local github_token=$2
+    local cnb_token=$3
 
     echo ""
     log_success "========================================"
@@ -62,6 +78,18 @@ main() {
     echo ""
     log_info "开始时间: $(get_beijing_time)"
     echo ""
+
+    # 加载配置文件中的 Token
+    load_tokens
+
+    # 使用参数中的 Token 覆盖配置文件
+    if [ -n "$github_token" ]; then
+        export GITHUB_TOKEN="$github_token"
+    fi
+
+    if [ -n "$cnb_token" ]; then
+        export CNB_TOKEN="$cnb_token"
+    fi
 
     # 如果没有提供版本号，使用当前版本
     if [ -z "$version" ]; then
@@ -73,7 +101,7 @@ main() {
     echo ""
 
     # Step 1: 检查工作区状态
-    log_step "1/8 检查工作区状态..."
+    log_step "1/9 检查工作区状态..."
     if [ -n "$(git status --porcelain)" ]; then
         log_error "工作区有未提交的更改，请先提交或暂存"
         git status --short
@@ -83,7 +111,7 @@ main() {
     echo ""
 
     # Step 2: 构建 .deb 包
-    log_step "2/8 构建 .deb 安装包..."
+    log_step "2/9 构建 .deb 安装包..."
     if [ ! -f "release/linux-clipboard_${version}_amd64.deb" ]; then
         log_info "开始构建..."
         npm run electron:build:deb
@@ -99,7 +127,7 @@ main() {
     echo ""
 
     # Step 3: 推送到 GitHub
-    log_step "3/8 推送代码到 GitHub..."
+    log_step "3/9 推送代码到 GitHub..."
     log_info "推送到 origin (GitHub)..."
     git push origin main
 
@@ -111,7 +139,7 @@ main() {
     echo ""
 
     # Step 4: 推送标签到 GitHub
-    log_step "4/8 推送标签到 GitHub..."
+    log_step "4/9 推送标签到 GitHub..."
     if git rev-parse "v${version}" >/dev/null 2>&1; then
         log_info "标签 v${version} 已存在，强制推送..."
         git push origin "refs/tags/v${version}" --force
@@ -123,29 +151,72 @@ main() {
     echo ""
 
     # Step 5: 推送到 CNB
-    log_step "5/8 推送代码到 CNB..."
-    log_info "推送到 cnb (腾讯 CNB)..."
-    git push cnb main
+    log_step "5/9 推送代码到 CNB..."
 
-    if [ $? -ne 0 ]; then
-        log_warn "推送到 CNB 失败（可能需要身份验证）"
-        log_info "请手动执行: git push cnb main"
+    if [ -z "$CNB_TOKEN" ]; then
+        log_warn "未提供 CNB Token"
+        echo ""
+        log_info "请设置 CNB Token 以继续推送:"
+        echo ""
+        echo "方式 1: 创建 .cnb-token 文件"
+        echo "  echo 'your_cnb_token_here' > .cnb-token"
+        echo "  chmod 600 .cnb-token"
+        echo ""
+        echo "方式 2: 使用命令行参数"
+        echo "  ./auto-release.sh ${version} \$GITHUB_TOKEN your_cnb_token_here"
+        echo ""
+        echo "方式 3: 使用环境变量"
+        echo "  export CNB_TOKEN='your_cnb_token_here'"
+        echo "  ./auto-release.sh ${version}"
+        echo ""
+        log_info "获取 CNB Token: 访问 https://cnb.cool/-/profile/personal_access_tokens"
+        echo ""
+
+        read -p "是否继续跳过 CNB 推送？(y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "发布已取消"
+            exit 0
+        fi
+        log_warn "跳过 CNB 推送"
     else
-        log_success "已推送到 CNB"
+        log_info "使用 Token 推送到 CNB..."
+
+        # 使用 Token 推送到 CNB
+        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
+
+        # 推送代码
+        git push "$cnb_url" main
+
+        if [ $? -ne 0 ]; then
+            log_warn "推送到 CNB 失败（Token 可能无效）"
+            log_info "请检查 Token 是否正确且有写入权限"
+        else
+            log_success "已推送到 CNB"
+        fi
     fi
     echo ""
 
     # Step 6: 推送标签到 CNB
-    log_step "6/8 推送标签到 CNB..."
-    git push cnb "v${version}" 2>/dev/null || \
-        log_warn "推送标签到 CNB 失败（可能需要身份验证）"
-    log_success "标签推送完成"
-    echo ""
+    if [ -n "$CNB_TOKEN" ]; then
+        log_step "6/9 推送标签到 CNB..."
+
+        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
+        git push "$cnb_url" "v${version}" 2>/dev/null || \
+            log_warn "推送标签到 CNB 失败"
+
+        log_success "标签推送完成"
+        echo ""
+    else
+        log_step "6/9 推送标签到 CNB..."
+        log_warn "跳过（未提供 CNB Token）"
+        echo ""
+    fi
 
     # Step 7: 创建 GitHub Release
-    log_step "7/8 创建 GitHub Release..."
+    log_step "7/9 创建 GitHub Release..."
 
-    if [ -z "$github_token" ]; then
+    if [ -z "$GITHUB_TOKEN" ]; then
         log_warn "未提供 GitHub Token，跳过创建 Release"
         log_info "手动创建 Release 步骤:"
         echo "  1. 访问: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/new"
@@ -167,8 +238,8 @@ main() {
         fi
 
         # 创建 Release
-        local response=$(curl -X POST \
-            -H "Authorization: token ${github_token}" \
+        local response=$(curl -s -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/Li-zhienxuan/Linux-Clipboard/releases" \
             -d "{
@@ -178,7 +249,7 @@ main() {
                 \"body\": $(echo "$release_notes" | jq -Rs .),
                 \"draft\": false,
                 \"prerelease\": false
-            }" 2>/dev/null)
+            }")
 
         # 检查是否成功
         if echo "$response" | grep -q "html_url"; then
@@ -191,11 +262,11 @@ main() {
                 log_info "上传 .deb 文件到 Release..."
 
                 # 上传 .deb 文件
-                local upload_response=$(curl -X POST \
-                    -H "Authorization: token ${github_token}" \
+                local upload_response=$(curl -s -X POST \
+                    -H "Authorization: token ${GITHUB_TOKEN}" \
                     -H "Content-Type: application/octet-stream" \
                     "https://uploads.github.com/repos/Li-zhienxuan/Linux-Clipboard/releases/${release_id}/assets?name=linux-clipboard_${version}_amd64.deb" \
-                    --data-binary @"release/linux-clipboard_${version}_amd64.deb" 2>/dev/null)
+                    --data-binary @"release/linux-clipboard_${version}_amd64.deb")
 
                 if echo "$upload_response" | grep -q "browser_download_url"; then
                     log_success ".deb 文件上传成功"
@@ -211,7 +282,45 @@ main() {
     echo ""
 
     # Step 8: 显示发布信息
-    log_step "8/8 发布完成！"
+    log_step "8/9 生成发布信息..."
+
+    # 创建发布信息文件
+    cat > "RELEASE_INFO_v${version}.txt" << EOF
+========================================
+Linux-Clipboard v${version} 发布信息
+========================================
+
+发布时间: $(get_beijing_time)
+版本: v${version}
+
+安装包:
+  文件名: linux-clipboard_${version}_amd64.deb
+  大小: $(du -h "release/linux-clipboard_${version}_amd64.deb" | cut -f1)
+  本地路径: $(pwd)/release/linux-clipboard_${version}_amd64.deb
+
+下载链接:
+  GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v${version}/linux-clipboard_${version}_amd64.deb
+  或使用 wget:
+  wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v${version}/linux-clipboard_${version}_amd64.deb
+
+安装命令:
+  sudo dpkg -i linux-clipboard_${version}_amd64.deb
+
+仓库链接:
+  GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard
+  CNB: https://cnb.cool/ZhienXuan/Linux-Clipboard
+
+Release Notes:
+  查看 RELEASE_NOTES_v${version}.md
+
+========================================
+EOF
+
+    log_success "发布信息已保存到: RELEASE_INFO_v${version}.txt"
+    echo ""
+
+    # Step 9: 完成
+    log_step "9/9 发布完成！"
     echo ""
     log_success "========================================"
     log_success "发布成功！"
@@ -225,6 +334,7 @@ main() {
 
     echo -e "${CYAN}安装包:${NC}"
     echo "  本地: release/linux-clipboard_${version}_amd64.deb"
+    echo "  大小: $(du -h "release/linux-clipboard_${version}_amd64.deb" | cut -f1)"
     echo ""
 
     echo -e "${CYAN}GitHub Release:${NC}"
