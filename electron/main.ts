@@ -1,16 +1,26 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { ClipboardManager } from './clipboard-manager';
 import { TrayManager } from './tray-manager';
 import { ShortcutsManager } from './shortcuts-manager';
 import { ConfigStore } from './store/config-store';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 let mainWindow: BrowserWindow | null = null;
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV !== 'production';
+
+// 获取资源路径
+const getResourcesPath = () => {
+  if (isDev) {
+    return process.cwd(); // 开发环境使用当前目录
+  }
+  // 生产环境：electron-builder 打包后，app.getAppPath() 指向 asar 文件
+  return path.join(process.resourcesPath || app.getAppPath(), 'app.asar.unpacked');
+};
+
+const getBasePath = () => {
+  const resourcesPath = getResourcesPath();
+  return isDev ? resourcesPath : path.dirname(app.getAppPath());
+};
 
 // 配置存储
 const store = new ConfigStore();
@@ -22,26 +32,26 @@ function createWindow() {
     height: 700,
     show: false, // 初始隐藏，通过托盘/快捷键显示
     frame: true,
-    title: 'Smart Clipboard Pro',
+    title: 'Linux-Clipboard',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(getBasePath(), 'dist-electron', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false // 开发环境可以设为 false，生产环境建议 true
+      sandbox: false
     }
   });
 
   // 开发环境加载 Vite 服务器，生产环境加载打包文件
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(path.join(getBasePath(), 'dist', 'index.html'));
   }
 
   // 窗口关闭时隐藏到托盘
   mainWindow.on('close', (e) => {
-    if (!app.isQuitting) {
+    if (!(app as any).isQuitting) {
       e.preventDefault();
       mainWindow?.hide();
     }
@@ -74,14 +84,14 @@ function setupIpc() {
 
   // 设置单个配置项
   ipcMain.handle('settings:set', (_, key: string, value: any) => {
-    store.set(key, value);
+    store.setAny(key, value);
 
     // 特殊处理开机自启
     if (key === 'autoStart') {
       app.setLoginItemSettings({
         openAtLogin: value,
         openAsHidden: true,
-        name: 'Smart Clipboard Pro'
+        name: 'Linux-Clipboard'
       });
     }
   });
@@ -136,7 +146,7 @@ app.whenReady().then(() => {
     app.setLoginItemSettings({
       openAtLogin: true,
       openAsHidden: true,
-      name: 'Smart Clipboard Pro'
+      name: 'Linux-Clipboard'
     });
   }
 

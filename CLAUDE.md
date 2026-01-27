@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-**Smart Clipboard Pro** 是一个基于 React 19 + TypeScript 的智能剪贴板管理器，使用 Google Gemini AI 提供图像识别和智能搜索功能。采用 Spotlight 风格设计，具有 Glassmorphism（磨砂玻璃）视觉效果。
+**Linux-Clipboard** 是一个基于 React 19 + TypeScript 的智能剪贴板管理器，使用 Google Gemini AI 提供图像识别和智能搜索功能。采用 Spotlight 风格设计，具有 Glassmorphism（磨砂玻璃）视觉效果。
 
 ## 常用命令
 
@@ -32,7 +32,7 @@ npm run preview
 ### 目录结构
 
 ```
-smartclipboard-1/
+linux-clipboard/
 ├── App.tsx                  # 主应用组件（包含完整状态管理和业务逻辑）
 ├── index.tsx                # React 应用入口
 ├── types.ts                 # TypeScript 类型定义

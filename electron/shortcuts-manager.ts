@@ -9,16 +9,15 @@ export class ShortcutsManager {
   }
 
   register(accelerator: string, callback: () => void): boolean {
-    const ret = globalShortcut.register(accelerator, callback);
-
-    if (ret) {
+    try {
+      globalShortcut.register(accelerator, callback);
       this.registeredShortcuts.push(accelerator);
       console.log(`Registered shortcut: ${accelerator}`);
-    } else {
-      console.error(`Failed to register shortcut: ${accelerator}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to register shortcut: ${accelerator}`, error);
+      return false;
     }
-
-    return ret;
   }
 
   unregister(accelerator: string): void {

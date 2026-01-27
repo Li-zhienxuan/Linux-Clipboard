@@ -1,9 +1,5 @@
 import { Tray, Menu, BrowserWindow, nativeImage, app } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export class TrayManager {
   private tray: Tray | null = null;
@@ -17,13 +13,14 @@ export class TrayManager {
     // 加载托盘图标
     // 开发环境使用临时图标，生产环境使用 resources/icons/icon.png
     let iconPath: string;
+    const isDev = process.env.NODE_ENV === 'development';
 
-    if (process.env.NODE_ENV === 'development') {
-      // 开发环境：创建一个简单的图标
-      iconPath = path.join(__dirname, '../resources/icons/icon.png');
+    if (isDev) {
+      // 开发环境
+      iconPath = path.join(process.cwd(), 'resources/icons/icon.png');
     } else {
       // 生产环境
-      iconPath = path.join(process.resourcesPath, 'icons/icon.png');
+      iconPath = path.join(process.resourcesPath || app.getAppPath(), 'icons/icon.png');
     }
 
     try {
@@ -59,14 +56,14 @@ export class TrayManager {
       {
         label: 'Quit',
         click: () => {
-          app.isQuitting = true;
+          (app as any).isQuitting = true;
           app.quit();
         }
       }
     ]);
 
     this.tray.setContextMenu(contextMenu);
-    this.tray.setToolTip('Smart Clipboard Pro');
+    this.tray.setToolTip('Linux-Clipboard');
 
     // 双击托盘图标显示窗口
     this.tray.on('double-click', () => {

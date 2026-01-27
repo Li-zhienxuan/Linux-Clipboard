@@ -1,6 +1,6 @@
 {
-  "appId": "com.smartclipboard.pro",
-  "productName": "Smart Clipboard Pro",
+  "appId": "com.linuxclipboard.app",
+  "productName": "Linux-Clipboard",
   "directories": {
     "output": "release",
     "buildResources": "resources"
@@ -26,10 +26,10 @@
     ],
     "category": "Utility",
     "icon": "resources/icons/icon.png",
-    "maintainer": "Smart Clipboard Pro <admin@smartclipboard.pro>",
+    "maintainer": "Linux-Clipboard <admin@linuxclipboard.app>",
     "description": "AI-powered clipboard manager with intelligent search and organization",
     "desktop": {
-      "Name": "Smart Clipboard Pro",
+      "Name": "Linux-Clipboard",
       "Comment": "Intelligent clipboard management with AI-powered search",
       "Categories": "Utility;Office;",
       "Keywords": "clipboard;manager;ai;search;",

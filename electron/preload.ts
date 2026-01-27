@@ -1,5 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// 定义 Electron API 接口
+export interface ElectronAPI {
+  readClipboard: () => Promise<{ type: string; content: string } | null>;
+  toggleWindow: () => void;
+  minimizeToTray: () => void;
+  onClipboardChange: (callback: (data: { type: string; content: string; timestamp: number }) => void) => (() => void) | undefined;
+  getSettings: () => Promise<any>;
+  setSetting: (key: string, value: any) => Promise<void>;
+  getApiKey: () => Promise<string>;
+  setApiKey: (apiKey: string) => Promise<void>;
+  platform: string;
+  isElectron: boolean;
+}
+
 // 暴露安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   // 剪贴板操作
@@ -30,6 +44,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 检测是否在 Electron 环境
   isElectron: true
 });
-
-// TypeScript 类型声明（需要在渲染进程中也可以访问）
-export type ElectronAPI = typeof window.electronAPI;

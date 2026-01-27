@@ -1,5 +1,5 @@
 {
-  "name": "SmartClipboard-1",
+  "name": "Linux-Clipboard",
   "description": "A Spotlight-style smart clipboard manager with AI-powered image searching and text indexing.",
   "requestFramePermissions": [
     "camera",

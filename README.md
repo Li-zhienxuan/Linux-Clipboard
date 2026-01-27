@@ -1,4 +1,4 @@
-# 📋 Smart Clipboard Pro | 智能剪贴板专家
+# 📋 Linux-Clipboard | 智能剪贴板专家
 
 [English](#english) | [简体中文](#chinese)
 

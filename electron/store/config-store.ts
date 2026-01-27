@@ -13,7 +13,7 @@ export class ConfigStore {
 
   constructor() {
     this.store = new Store<ConfigSchema>({
-      name: 'smart-clipboard-config',
+      name: 'linux-clipboard-config',
       defaults: {
         autoStart: false,
         shortcut: 'CommandOrControl+Shift+V',
@@ -30,6 +30,10 @@ export class ConfigStore {
 
   set<K extends keyof ConfigSchema>(key: K, value: ConfigSchema[K]): void {
     this.store.set(key, value);
+  }
+
+  setAny(key: string, value: any): void {
+    (this.store as any).set(key, value);
   }
 
   getAll(): ConfigSchema {
