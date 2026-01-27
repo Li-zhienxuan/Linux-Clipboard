@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ###############################################################################
-# Linux-Clipboard 自动化发布脚本（交互式 Token 输入）
+# Linux-Clipboard 自动化发布脚本（交互式密码输入）
 # 功能: 自动构建、推送到 GitHub/CNB、创建 Release
 # 用法: ./auto-release.sh [version]
 ###############################################################################
@@ -56,47 +56,37 @@ prompt_token() {
 
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BOLD}${CYAN}  ${token_name} Token 配置${NC}"
+    echo -e "${BOLD}${CYAN}  ${token_name} 配置${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${YELLOW}获取 Token:${NC}"
-    echo "  1. 访问 ${prompt_msg}"
-    echo "  2. 点击 'Add new token' 或 'Generate new token'"
-    echo "  3. 勾选必要的权限 (api, read_repository, write_repository)"
-    echo "  4. 生成并复制 Token"
+    echo -e "${YELLOW}获取 ${token_name}:${NC}"
+    echo "  ${prompt_msg}"
     echo ""
-    echo -e "${RED}⚠️  注意: Token 只会显示一次，请妥善保管！${NC}"
+    echo -e "${RED}⚠️  注意: 密码仅用于本次操作，不会保存！${NC}"
     echo ""
 
     # 交互式输入（不回显）
-    read -s -p "请输入 ${token_name} Token (输入后按 Enter): " token_value
+    read -s -p "请输入 ${token_name} (输入后按 Enter): " token_value
     echo ""
     echo ""
 
-    # 验证 Token 不为空
+    # 验证不为空
     while [ -z "$token_value" ]; do
-        echo -e "${RED}Token 不能为空！${NC}"
-        read -s -p "请重新输入 ${token_name} Token: " token_value
+        echo -e "${RED}${token_name} 不能为空！${NC}"
+        read -s -p "请重新输入 ${token_name}: " token_value
         echo ""
     done
 
     # 设置环境变量
     export "$token_var"="$token_value"
 
-    echo -e "${GREEN}✓ ${token_name} Token 已设置${NC}"
+    echo -e "${GREEN}✓ ${token_name} 已设置${NC}"
     echo ""
 }
 
-# 从配置文件读取 Token（如果存在）
+# 从配置文件读取 GitHub Token（如果存在）
 load_tokens_from_files() {
     local loaded=false
-
-    # 从 .cnb-token 文件读取 CNB Token
-    if [ -f ".cnb-token" ]; then
-        export CNB_TOKEN=$(cat .cnb-token | tr -d ' \n')
-        log_info "从 .cnb-token 文件加载 CNB Token"
-        loaded=true
-    fi
 
     # 从 .github-token 文件读取 GitHub Token
     if [ -f ".github-token" ]; then
@@ -136,13 +126,13 @@ main() {
     load_tokens_from_files
 
     # 如果没有从文件加载到 Token，提示用户是否交互式输入
-    if [ -z "$GITHUB_TOKEN" ] || [ -z "$CNB_TOKEN" ]; then
+    if [ -z "$GITHUB_TOKEN" ]; then
         echo ""
-        echo -e "${YELLOW}检测到 Token 未配置${NC}"
+        echo -e "${YELLOW}检测到 GitHub Token 未配置${NC}"
         echo ""
         echo "你可以选择:"
-        echo "  1) 交互式输入 Token（推荐，安全）"
-        echo "  2) 跳过 Token 配置（不创建 Release / 不推送到 CNB）"
+        echo "  1) 交互式输入 GitHub Token（推荐，安全）"
+        echo "  2) 跳过 GitHub Token（不创建 Release）"
         echo "  3) 取消发布"
         echo ""
         read -p "请选择 (1/2/3): " choice
@@ -155,16 +145,10 @@ main() {
                     prompt_token "GitHub" "GITHUB_TOKEN" "https://github.com/settings/tokens"
                 fi
 
-                # CNB Token
-                if [ -z "$CNB_TOKEN" ]; then
-                    prompt_token "CNB" "CNB_TOKEN" "https://cnb.cool/-/profile/personal_access_tokens"
-                fi
                 ;;
             2)
-                log_warn "跳过 Token 配置"
-                log_info "将不会:")
-                echo "  - 创建 GitHub Release（需要手动操作）"
-                echo "  - 推送到 CNB（需要手动推送）"
+                log_warn "跳过 GitHub Token 配置"
+                log_info "将不会创建 GitHub Release（需要手动操作）"
                 echo ""
                 read -p "是否继续？(y/N): " confirm
                 echo ""
@@ -183,9 +167,26 @@ main() {
                 ;;
         esac
     else
-        log_success "Token 配置文件已找到"
+        log_success "GitHub Token 配置文件已找到"
     fi
     echo ""
+
+    # CNB 密码输入（每次都要求输入）
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${CYAN}  CNB 推送配置${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "推送到 CNB 需要使用用户名 'cnb' 和密码"
+    echo ""
+    read -p "是否推送到 CNB？(y/N): " push_to_cnb
+    echo ""
+
+    if [[ $push_to_cnb =~ ^[Yy]$ ]]; then
+        prompt_token "CNB 密码" "CNB_PASSWORD" "用户名: cnb"
+    else
+        log_warn "将跳过 CNB 推送"
+    fi
 
     # 显示 Token 状态
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -199,10 +200,10 @@ main() {
         echo -e "  GitHub Token: ${YELLOW}✗ 未配置${NC} (将跳过 Release 创建)"
     fi
 
-    if [ -n "$CNB_TOKEN" ]; then
-        echo -e "  CNB Token:    ${GREEN}✓ 已配置${NC}"
+    if [ -n "$CNB_PASSWORD" ]; then
+        echo -e "  CNB 密码:    ${GREEN}✓ 已配置${NC}"
     else
-        echo -e "  CNB Token:    ${YELLOW}✗ 未配置${NC} (将跳过 CNB 推送)"
+        echo -e "  CNB 密码:    ${YELLOW}✗ 未配置${NC} (将跳过 CNB 推送)"
     fi
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -261,14 +262,14 @@ main() {
     # Step 5: 推送到 CNB
     log_step "5/9 推送代码到 CNB..."
 
-    if [ -z "$CNB_TOKEN" ]; then
-        log_warn "未配置 CNB Token，跳过 CNB 推送"
-        log_info "如需推送到 CNB，请配置 CNB Token 后重新运行"
+    if [ -z "$CNB_PASSWORD" ]; then
+        log_warn "未配置 CNB 密码，跳过 CNB 推送"
+        log_info "如需推送到 CNB，请配置 CNB 密码 后重新运行"
     else
         log_info "使用 Token 推送到 CNB..."
 
         # 使用 Token 推送到 CNB
-        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
+        local cnb_url="https://cnb:${CNB_PASSWORD}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
 
         # 推送代码
         if git push "$cnb_url" main; then
@@ -283,10 +284,10 @@ main() {
     # Step 6: 推送标签到 CNB
     log_step "6/9 推送标签到 CNB..."
 
-    if [ -z "$CNB_TOKEN" ]; then
-        log_warn "未配置 CNB Token，跳过标签推送"
+    if [ -z "$CNB_PASSWORD" ]; then
+        log_warn "未配置 CNB 密码，跳过标签推送"
     else
-        local cnb_url="https://oauth2:${CNB_TOKEN}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
+        local cnb_url="https://cnb:${CNB_PASSWORD}@cnb.cool/ZhienXuan/Linux-Clipboard.git"
 
         if git push "$cnb_url" "v${version}" 2>/dev/null; then
             log_success "标签已推送到 CNB"
@@ -377,15 +378,7 @@ main() {
         fi
     fi
 
-    if [ -n "$CNB_TOKEN" ] && [ ! -f ".cnb-token" ]; then
-        read -p "是否要保存 CNB Token 到 .cnb-token 文件？(y/N): " save_cnb
-        echo ""
-        if [[ $save_cnb =~ ^[Yy]$ ]]; then
-            echo "$CNB_TOKEN" > .cnb-token
-            chmod 600 .cnb-token
-            log_success "CNB Token 已保存到 .cnb-token"
-        fi
-    fi
+    echo ""
     echo ""
 
     # Step 9: 显示发布信息
@@ -445,7 +438,7 @@ EOF
 
     echo -e "${CYAN}仓库状态:${NC}"
     echo -e "  GitHub: ${GREEN}✓ 已推送${NC}"
-    if [ -n "$CNB_TOKEN" ]; then
+    if [ -n "$CNB_PASSWORD" ]; then
         echo -e "  CNB:    ${GREEN}✓ 已推送${NC}"
     else
         echo -e "  CNB:    ${YELLOW}✗ 未推送${NC}"
@@ -470,7 +463,7 @@ EOF
 
     # 清理 Token 环境变量（安全）
     unset GITHUB_TOKEN
-    unset CNB_TOKEN
+    unset CNB_PASSWORD
 
     echo -e "${GREEN}✓ Token 已从内存中清除${NC}"
     echo ""
