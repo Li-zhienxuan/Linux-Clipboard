@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X, Minimize2 } from 'lucide-react';
+import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X, Minimize2, Settings } from 'lucide-react';
 import { ClipboardItem, ContentType, TimeMode } from './types';
 import { ClipboardCard } from './components/ClipboardCard';
 import { analyzeImage, suggestTags } from './services/geminiService';
@@ -36,6 +36,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'history' | 'starred'>('history');
   const [showToast, setShowToast] = useState<{message: string, type: 'info' | 'error'} | null>(null);
   
+  // Settings modal state
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [tempApiKey, setTempApiKey] = useState('');
+  
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Constants for Time Filtering - Precision labels as requested
@@ -58,6 +63,14 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('smart_clipboard_items');
     if (saved) {
       setItems(JSON.parse(saved));
+    }
+
+    // 加载 API Key
+    if (window.electronAPI?.isElectron) {
+      window.electronAPI.getApiKey().then(key => {
+        setApiKey(key || '');
+        setTempApiKey(key || '');
+      });
     }
   }, []);
 
@@ -94,13 +107,19 @@ const App: React.FC = () => {
       let tags: string[] = [type];
       let description = '';
 
-      if (type === 'image' && blob) {
-        const result = await analyzeImage(blob);
-        tags = [...tags, ...result.tags];
-        description = result.description;
-      } else {
-        const textTags = await suggestTags(content);
-        tags = [...tags, ...textTags];
+      // 尝试使用 AI 索引，但失败时不阻止添加项目
+      try {
+        if (type === 'image' && blob) {
+          const result = await analyzeImage(blob);
+          tags = [...tags, ...result.tags];
+          description = result.description;
+        } else {
+          const textTags = await suggestTags(content);
+          tags = [...tags, ...textTags];
+        }
+      } catch (aiError) {
+        console.warn("AI indexing skipped:", aiError);
+        // AI 失败时使用默认标签，不影响项目添加
       }
 
       const newItem: ClipboardItem = {
@@ -114,10 +133,10 @@ const App: React.FC = () => {
       };
 
       setItems(prev => [newItem, ...prev]);
-      notify("Indexed successfully!");
+      notify("Added to clipboard!");
     } catch (error) {
-      console.error("Indexing failed:", error);
-      notify("AI index failed", 'error');
+      console.error("Failed to add item:", error);
+      notify("Failed to add item", 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -126,6 +145,16 @@ const App: React.FC = () => {
   const notify = (msg: string, type: 'info' | 'error' = 'info') => {
     setShowToast({ message: msg, type });
     setTimeout(() => setShowToast(null), 3000);
+  };
+
+  // 保存 API Key
+  const handleSaveApiKey = async () => {
+    if (window.electronAPI?.isElectron) {
+      await window.electronAPI.setApiKey(tempApiKey);
+      setApiKey(tempApiKey);
+      notify("API Key saved successfully!");
+      setShowSettings(false);
+    }
   };
 
   // CORE FUNCTION: Clipboard Processor (Preserved)
@@ -272,13 +301,24 @@ const App: React.FC = () => {
               ))}
             </div>
             
-            <button 
-              onClick={readClipboard}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 rounded-2xl transition-all"
-            >
-              <Clipboard className="w-3.5 h-3.5 text-blue-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Sync Now</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600/10 hover:bg-gray-600/20 border border-gray-500/20 rounded-2xl transition-all"
+                title="Settings"
+              >
+                <Settings className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Settings</span>
+              </button>
+              
+              <button 
+                onClick={readClipboard}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 rounded-2xl transition-all"
+              >
+                <Clipboard className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Sync Now</span>
+              </button>
+            </div>
           </div>
 
           <div className="relative group">
@@ -422,6 +462,79 @@ const App: React.FC = () => {
         <div className={`absolute bottom-24 left-1/2 -translate-x-1/2 z-50 ${showToast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in ring-1 ring-white/20`}>
           {showToast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
           <span className="text-[10px] font-black uppercase tracking-widest">{showToast.message}</span>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-white/10 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black uppercase tracking-widest text-white">Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                  Gemini API Key
+                </label>
+                <input
+                  type="password"
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                  placeholder="Enter your Google Gemini API Key"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all text-white placeholder:text-gray-600"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Get your API key from{' '}
+                  <a
+                    href="https://aistudio.google.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </p>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-gray-400 space-y-1">
+                    <p className="font-bold text-blue-400">AI Features:</p>
+                    <p>• Auto-generate smart tags for text and code</p>
+                    <p>• Analyze and describe images</p>
+                    <p>• Enable intelligent search</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setTempApiKey(apiKey);
+                  setShowSettings(false);
+                }}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-sm font-bold uppercase tracking-wider text-gray-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveApiKey}
+                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl transition-all text-sm font-bold uppercase tracking-wider text-white shadow-lg shadow-blue-900/50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

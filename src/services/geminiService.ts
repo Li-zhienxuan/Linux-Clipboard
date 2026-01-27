@@ -13,7 +13,7 @@ const getApiKey = async (): Promise<string> => {
     return process.env.API_KEY;
   }
 
-  throw new Error('API Key not found. Please set it in settings.');
+  throw new Error('Gemini API Key not configured. AI features will be disabled. You can set it in settings.');
 };
 
 export const analyzeImage = async (base64Image: string): Promise<{ description: string; tags: string[] }> => {

@@ -4,35 +4,67 @@ import { ClipboardManager } from './clipboard-manager';
 import { TrayManager } from './tray-manager';
 import { ShortcutsManager } from './shortcuts-manager';
 import { ConfigStore } from './store/config-store';
+import { SecureConfigStore } from './store/secure-store';
+
+// 处理 root 用户运行时的沙箱问题
+if (process.getuid && process.getuid() === 0) {
+  app.commandLine.appendSwitch('no-sandbox');
+  console.warn('Running as root: --no-sandbox flag enabled');
+}
 
 let mainWindow: BrowserWindow | null = null;
-const isDev = process.env.NODE_ENV !== 'production';
-
-// 获取资源路径
-const getResourcesPath = () => {
-  if (isDev) {
-    return process.cwd(); // 开发环境使用当前目录
-  }
-  // 生产环境：electron-builder 打包后，app.getAppPath() 指向 asar 文件
-  return path.join(process.resourcesPath || app.getAppPath(), 'app.asar.unpacked');
-};
+const isDev = !app.isPackaged; // 使用 Electron 的打包状态检测，而不是环境变量
 
 const getBasePath = () => {
-  const resourcesPath = getResourcesPath();
-  return isDev ? resourcesPath : path.dirname(app.getAppPath());
+  // 开发环境：使用当前工作目录
+  // 生产环境：app.getAppPath() 返回 app.asar 路径，Electron 可以直接从中读取文件
+  return isDev ? process.cwd() : app.getAppPath();
 };
 
 // 配置存储
 const store = new ConfigStore();
+const secureStore = new SecureConfigStore();
+
+// 自动迁移：从旧配置迁移 API Key 到安全存储
+function migrateApiKeyToSecureStore() {
+  try {
+    // 检查旧配置中是否有 API Key
+    const oldConfigPath = path.join(app.getPath('userData'), 'linux-clipboard-config.json');
+    const fs = require('fs');
+
+    if (fs.existsSync(oldConfigPath)) {
+      // 读取旧配置
+      const oldConfig = JSON.parse(fs.readFileSync(oldConfigPath, 'utf-8'));
+
+      // 如果旧配置中有 geminiApiKey 且安全存储中还没有
+      if (oldConfig.geminiApiKey && !secureStore.getApiKey()) {
+        console.log('🔄 Migrating API key from plaintext config to secure storage...');
+        secureStore.setApiKey(oldConfig.geminiApiKey);
+
+        // 从旧配置中删除明文 API Key
+        delete oldConfig.geminiApiKey;
+        fs.writeFileSync(oldConfigPath, JSON.stringify(oldConfig, null, 2));
+        console.log('✓ API key migration completed successfully');
+      }
+    }
+  } catch (error) {
+    console.error('Migration failed:', error);
+    // 迁移失败不影响应用启动
+  }
+}
+
+// 执行迁移
+migrateApiKeyToSecureStore();
 
 // 创建窗口
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
-    show: false, // 初始隐藏，通过托盘/快捷键显示
+    show: false, // 先隐藏，等加载完成后再显示
     frame: true,
     title: 'Linux-Clipboard',
+    autoHideMenuBar: true, // 隐藏菜单栏
     webPreferences: {
       preload: path.join(getBasePath(), 'dist-electron', 'preload.js'),
       contextIsolation: true,
@@ -41,6 +73,9 @@ function createWindow() {
     }
   });
 
+  // 移除默认菜单
+  mainWindow.setMenuBarVisibility(false);
+
   // 开发环境加载 Vite 服务器，生产环境加载打包文件
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -48,6 +83,11 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(getBasePath(), 'dist', 'index.html'));
   }
+
+  // 页面加载完成后显示窗口
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
 
   // 窗口关闭时隐藏到托盘
   mainWindow.on('close', (e) => {
@@ -96,14 +136,14 @@ function setupIpc() {
     }
   });
 
-  // 获取 API Key
+  // 获取 API Key (使用安全存储)
   ipcMain.handle('get-api-key', () => {
-    return store.get('geminiApiKey', '');
+    return secureStore.getApiKey();
   });
 
-  // 设置 API Key
+  // 设置 API Key (使用安全存储)
   ipcMain.handle('set-api-key', (_, apiKey: string) => {
-    store.set('geminiApiKey', apiKey);
+    secureStore.setApiKey(apiKey);
   });
 
   // 最小化到托盘

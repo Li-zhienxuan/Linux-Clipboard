@@ -1,7 +1,7 @@
 {
   "name": "linux-clipboard",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.3",
   "description": "AI-powered clipboard manager with system tray support",
   "main": "dist-electron/main.js",
   "type": "module",

@@ -11,16 +11,16 @@ export class TrayManager {
 
   createTray() {
     // 加载托盘图标
-    // 开发环境使用临时图标，生产环境使用 resources/icons/icon.png
+    // 开发环境使用临时图标,生产环境使用 resources/icons/icon.png
     let iconPath: string;
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = !app.isPackaged; // 使用 Electron 的打包状态检测
 
     if (isDev) {
       // 开发环境
       iconPath = path.join(process.cwd(), 'resources/icons/icon.png');
     } else {
-      // 生产环境
-      iconPath = path.join(process.resourcesPath || app.getAppPath(), 'icons/icon.png');
+      // 生产环境：使用 process.resourcesPath
+      iconPath = path.join(process.resourcesPath, 'icons/icon.png');
     }
 
     try {

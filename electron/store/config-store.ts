@@ -3,7 +3,6 @@ import Store from 'electron-store';
 interface ConfigSchema {
   autoStart: boolean;
   shortcut: string;
-  geminiApiKey: string;
   theme: string;
   maxHistoryItems: number;
 }
@@ -17,7 +16,6 @@ export class ConfigStore {
       defaults: {
         autoStart: false,
         shortcut: 'CommandOrControl+Shift+V',
-        geminiApiKey: '',
         theme: 'dark',
         maxHistoryItems: 1000
       }
