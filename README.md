@@ -7,7 +7,7 @@
 <a name="english"></a>
 ## 🌍 English Version
 
-![Version](https://img.shields.io/badge/version-v0.3.4-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.3.8-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-33.4.11-9feaf9.svg)
 ![React](https://img.shields.io/badge/React-19.2.3-61dafb.svg)
@@ -86,10 +86,10 @@ linux-clipboard/
 
 ```bash
 # Download the latest release
-wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.4/linux-clipboard_0.3.4_amd64.deb
+wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.8/linux-clipboard_0.3.8_amd64.deb
 
 # Install
-sudo dpkg -i linux-clipboard_0.3.4_amd64.deb
+sudo dpkg -i linux-clipboard_0.3.8_amd64.deb
 
 # Run
 linux-clipboard
@@ -142,6 +142,7 @@ Detailed documentation available in [docs/](docs/):
 |----------|-------------|
 | [INDEX.md](docs/INDEX.md) | Complete documentation index |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Development guide |
+| [cnb-cloud-build-guide.md](docs/cnb-cloud-build-guide.md) | CNB cloud native build guide |
 | [Build.md](docs/Build.md) | Build history and records |
 | [Repair.md](docs/Repair.md) | Troubleshooting guide |
 | [AUTO_RELEASE_GUIDE.md](docs/AUTO_RELEASE_GUIDE.md) | Release automation |
@@ -179,7 +180,7 @@ MIT License - see LICENSE file for details
 <a name="chinese"></a>
 ## 🇨🇳 中文版
 
-![版本](https://img.shields.io/badge/版本-v0.3.4-blue.svg)
+![版本](https://img.shields.io/badge/版本-v0.3.8-blue.svg)
 ![协议](https://img.shields.io/badge/协议-MIT-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-33.4.11-9feaf9.svg)
 ![React](https://img.shields.io/badge/React-19.2.3-61dafb.svg)
@@ -258,10 +259,10 @@ linux-clipboard/
 
 ```bash
 # 下载最新版本
-wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.4/linux-clipboard_0.3.4_amd64.deb
+wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/v0.3.8/linux-clipboard_0.3.8_amd64.deb
 
 # 安装
-sudo dpkg -i linux-clipboard_0.3.4_amd64.deb
+sudo dpkg -i linux-clipboard_0.3.8_amd64.deb
 
 # 运行
 linux-clipboard
@@ -314,6 +315,7 @@ npm run electron:build:deb
 |------|------|
 | [INDEX.md](docs/INDEX.md) | 完整文档索引 |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 开发指南 |
+| [cnb-cloud-build-guide.md](docs/cnb-cloud-build-guide.md) | CNB 云原生构建指南 |
 | [Build.md](docs/Build.md) | 构建历史和记录 |
 | [Repair.md](docs/Repair.md) | 问题排查指南 |
 | [AUTO_RELEASE_GUIDE.md](docs/AUTO_RELEASE_GUIDE.md) | 自动发布指南 |
@@ -366,7 +368,7 @@ MIT License - 详见 LICENSE 文件
 
 ## 📊 项目状态
 
-- **当前版本**: v0.3.4
+- **当前版本**: v0.3.8
 - **最新发布**: [GitHub Releases](https://github.com/Li-zhienxuan/Linux-Clipboard/releases)
 - **问题追踪**: [GitHub Issues](https://github.com/Li-zhienxuan/Linux-Clipboard/issues)
 - **更新日志**: [CHANGELOG.md](docs/Build.md)
