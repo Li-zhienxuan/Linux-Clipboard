@@ -1,0 +1,142 @@
+# CNB CI/CD 配置文件
+# CNB (cnb.cool) 基于 GitLab，使用 .gitlab-ci.yml 格式
+
+stages:
+  - build
+  - package
+  - release
+
+variables:
+  # Node.js 版本
+  NODE_VERSION: "22"
+  # 项目名称
+  PROJECT_NAME: "linux-clipboard"
+
+# 缓存 node_modules
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+# 构建阶段 - 编译前端代码
+build:frontend:
+  stage: build
+  image: node:22
+  script:
+    - echo "📦 开始构建前端..."
+    - npm ci
+    - npm run build
+    - echo "✅ 前端构建完成"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 hour
+  only:
+    - main
+    - tags
+    - merge_requests
+
+# 打包阶段 - 构建 .deb 安装包
+package:deb:
+  stage: package
+  image: node:22
+  dependencies:
+    - build:frontend
+  before_script:
+    # 安装 Electron 构建依赖
+    - apt-get update
+    - apt-get install -y fakeroot binutils
+  script:
+    - echo "📦 开始打包 .deb 安装包..."
+    - npm ci
+    - npm run build
+    - npm run electron:build:deb
+    - echo "✅ 打包完成"
+    - ls -lh release/
+  artifacts:
+    paths:
+      - release/*.deb
+    expire_in: 1 day
+  only:
+    - main
+    - /^v.*$/
+
+# 发布阶段 - 创建 Release (仅触发 tag 时)
+release:create:
+  stage: release
+  image: node:22
+  dependencies:
+    - package:deb
+  script:
+    - echo "🚀 创建 Release..."
+    - VERSION=${CI_COMMIT_TAG#v}
+    - echo "版本: $VERSION"
+    - echo "Commit: $CI_COMMIT_SHA"
+    - echo "发布时间: $(date '+%Y-%m-%d %H:%M:%S (CST, UTC+8)')"
+
+    # 创建 Release 信息文件
+    - cat > RELEASE_INFO_${VERSION}.txt <<EOF
+      ========================================
+      Linux-Clipboard ${VERSION} 发布信息
+      ========================================
+
+      发布时间: $(date '+%Y-%m-%d %H:%M:%S (CST, UTC+8)')
+      版本: ${VERSION}
+      CI/CD: CNB GitLab CI 自动发布
+
+      安装包:
+        文件名: linux-clipboard_${VERSION}_amd64.deb
+        下载: https://cnb.cool/ZhienXuan/Linux-Clipboard/-/releases/${VERSION}/downloads/linux-clipboard_${VERSION}_amd64.deb
+
+      安装命令:
+        wget https://cnb.cool/ZhienXuan/Linux-Clipboard/-/releases/${VERSION}/downloads/linux-clipboard_${VERSION}_amd64.deb
+        sudo dpkg -i linux-clipboard_${VERSION}_amd64.deb
+
+      仓库链接:
+        CNB: https://cnb.cool/ZhienXuan/Linux-Clipboard
+        GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard
+      EOF
+
+    - cat RELEASE_INFO_${VERSION}.txt
+    - echo "✅ Release 信息已生成"
+  artifacts:
+    paths:
+      - RELEASE_INFO_*.txt
+    expire_in: 30 days
+  only:
+    - /^v.*$/
+  when: on_success
+
+# 手动触发 - 构建测试
+build:manual:
+  stage: build
+  image: node:22
+  script:
+    - echo "🔧 手动触发构建测试"
+    - npm ci
+    - npm run build
+    - echo "✅ 构建测试完成"
+  only:
+    - main
+  when: manual
+
+# 通知 - 构建状态
+notify:success:
+  stage: .post
+  script:
+    - echo "✅ CI/CD 流程执行成功"
+    - echo "项目: ${PROJECT_NAME}"
+    - echo "分支: ${CI_COMMIT_REF_NAME}"
+    - echo "Commit: ${CI_COMMIT_SHORT_SHA}"
+    - echo "Pipeline: ${CI_PIPELINE_URL}"
+  when: on_success
+
+notify:failure:
+  stage: .post
+  script:
+    - echo "❌ CI/CD 流程执行失败"
+    - echo "项目: ${PROJECT_NAME}"
+    - echo "分支: ${CI_COMMIT_REF_NAME}"
+    - echo "Commit: ${CI_COMMIT_SHORT_SHA}"
+    - echo "请检查日志: ${CI_PIPELINE_URL}"
+  when: on_failure
