@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 import Store from 'electron-store';
 import { app } from 'electron';
 import { chmodSync } from 'fs';
+import os from 'os';
 import path from 'path';
 
 /**
@@ -24,7 +25,6 @@ export class SecureStore {
    * 结合多个系统属性生成稳定的机器 ID
    */
   private getMachineId(): string {
-    const os = require('os');
     // 使用主机名、用户名和平台生成机器 ID
     const id = `${os.hostname()}-${os.userInfo().username}-${os.platform()}`;
     return id;

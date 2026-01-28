@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { ClipboardManager } from './clipboard-manager';
 import { TrayManager } from './tray-manager';
 import { ShortcutsManager } from './shortcuts-manager';
@@ -30,7 +31,6 @@ function migrateApiKeyToSecureStore() {
   try {
     // 检查旧配置中是否有 API Key
     const oldConfigPath = path.join(app.getPath('userData'), 'linux-clipboard-config.json');
-    const fs = require('fs');
 
     if (fs.existsSync(oldConfigPath)) {
       // 读取旧配置
