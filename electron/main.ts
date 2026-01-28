@@ -78,7 +78,7 @@ function createWindow() {
 
   // 开发环境加载 Vite 服务器，生产环境加载打包文件
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(getBasePath(), 'dist', 'index.html'));
