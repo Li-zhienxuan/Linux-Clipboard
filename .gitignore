@@ -11,6 +11,7 @@ out/
 # Backup directories
 release-*-backup/
 *-backup/
+backup_md_sh/
 
 # Electron
 *.log

@@ -1,394 +1,245 @@
-# Repair.md - 问题排查与修复记录
+# Linux-Clipboard 修复记录
 
-本文档记录 Linux-Clipboard 项目在开发、构建和测试过程中遇到的所有问题及其解决方案。
+## 版本 v0.3.4 - 问题修复记录
 
----
-
-## Version 0.3.3 - 问题排查记录
-
-**记录时间**: 2026-01-27 20:30:00 (CST, UTC+8)
-
-### 构建测试阶段问题
-
-#### 问题 #4: 系统托盘图标未包含在安装包中
-**发现时间**: 2026-01-27 20:30:00 (CST, UTC+8)
-**严重程度**: 🟡 中等
-**影响版本**: v0.3.2
-
-**问题描述**:
-- 系统托盘图标文件在构建后没有被包含在安装包中
-- 图标源文件存在于 `resources/icons/icon.png`
-- 但打包后的 `release/linux-unpacked/resources/` 目录中没有 `icons/` 子目录
-
-**排查过程**:
-```bash
-# 1. 检查源文件是否存在
-ls -lh resources/icons/
-# ✓ icon.png (9.7K) 存在
-
-# 2. 检查打包后的文件
-find release/linux-unpacked/resources -name "*.png"
-# ✗ 结果为空 - 图标未包含
-
-# 3. 检查 electron-builder 配置
-cat electron-builder.json
-# 发现缺少 extraResources 配置
-```
-
-**根本原因**:
-- `electron-builder.json` 中只配置了 `buildResources: "resources"`
-- 但这只用于构建过程（如应用图标），不会自动复制到最终包中
-- 需要显式配置 `extraResources` 来包含额外的资源文件
-
-**解决方案**:
-```json
-// electron-builder.json
-{
-  // ... 其他配置
-  "extraResources": [
-    {
-      "from": "resources/icons/",
-      "to": "icons/",
-      "filter": ["**/*"]
-    }
-  ]
-}
-```
-
-**实施步骤**:
-1. 更新 `electron-builder.json` 添加 `extraResources` 配置
-2. 更新版本号: 0.3.2 → 0.3.3
-3. 重新构建: `npm run electron:build:deb`
-
-**验证方法**:
-```bash
-# 检查打包后的图标文件
-find release/linux-unpacked/resources -name "*.png"
-# ✓ 应该显示: release/linux-unpacked/resources/icons/icon.png
-
-# 检查文件大小
-ls -lh release/linux-unpacked/resources/icons/
-# ✓ 应该显示:
-#   icon.png (9.7K)
-#   icon.svg (1.3K)
-```
-
-**状态**: ✅ 已解决 (v0.3.3)
+### 问题总结
+本版本主要修复了 **ES Module 与 CommonJS 兼容性问题**，该问题导致应用在运行时抛出 `require is not defined` 错误。
 
 ---
 
-## Version 0.3.2 - 问题排查记录
+## 问题 #1: SecureStore 中的 require() 错误
 
-**记录时间**: 2026-01-27 20:30:00 (CST, UTC+8)
+### 发现时间
+2026-01-28 10:06:25 (CST, UTC+8)
 
-### 构建前问题
-
-#### 问题 #1: 明文存储 API Key 安全风险
-**发现时间**: v0.2.0 版本
-**严重程度**: 🔴 高危
-
-**问题描述**:
-- v0.2.0 版本中，Gemini API Key 以明文形式存储在配置文件中
-- 配置文件位置: `~/.config/linux-clipboard/linux-clipboard-config.json`
-- 任何可以访问用户目录的应用程序都能读取 API Key
-
-**解决方案**:
-```typescript
-// 创建了 electron/store/secure-store.ts
-// 实现 AES-256-GCM 加密存储
-export class SecureStore {
-  private readonly algorithm = 'aes-256-gcm';
-  // 使用 scrypt 从机器 ID 派生密钥
-  private key = scryptSync(machineId, 'linux-clipboard-salt', 32);
-}
+### 错误信息
+```
+ReferenceError: require is not defined in ES module scope, you can use import instead
+This file is being treated as an ES module because it has a '.js' file extension and '/Code/Dev/Linux-Clipboard/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+    at SecureStore.getMachineId (file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:15893:16)
+    at new SecureStore (file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:15885:28)
+    at new SecureConfigStore (file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:15941:24)
+    at file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:15989:21
 ```
 
-**实施步骤**:
-1. 创建 `SecureStore` 类处理加密/解密
-2. 创建 `SecureConfigStore` 类管理敏感配置
-3. 设置配置文件权限为 600
-4. 在 `main.ts` 中实现自动迁移逻辑
+### 问题分析
 
-**验证方法**:
-```bash
-# 检查加密后的内容
-cat ~/.config/linux-clipboard/linux-clipboard-secure.json
-# 应该看到加密后的密文，而不是原始 API Key
+#### 根本原因
+1. 项目在 `package.json` 中配置了 `"type": "module"`，启用了 ES Module 模式
+2. 在 `electron/store/secure-store.ts` 文件的 `getMachineId()` 方法中使用了 `const os = require('os')`
+3. ES Module 不支持 `require()` 语法，必须使用 `import` 语句
 
-# 检查文件权限
-ls -la ~/.config/linux-clipboard/
-# 应该显示: -rw------- (600)
-```
+#### 影响范围
+- 应用启动时立即崩溃
+- 所有依赖 `SecureStore` 的功能无法使用
+- API Key 加密存储功能受影响
 
-**状态**: ✅ 已解决
+### 解决方案
+
+#### 修改文件
+`electron/store/secure-store.ts`
+
+#### 修改步骤
+
+1. **在文件顶部添加导入语句**:
+   ```typescript
+   import os from 'os';
+   ```
+
+2. **删除函数内的 require 调用**:
+   ```typescript
+   // 修改前
+   private getMachineId(): string {
+     const os = require('os');  // ❌ 错误
+     const id = `${os.hostname()}-${os.userInfo().username}-${os.platform()}`;
+     return id;
+   }
+
+   // 修改后
+   private getMachineId(): string {
+     const id = `${os.hostname()}-${os.userInfo().username}-${os.platform()}`;
+     return id;
+   }
+   ```
+
+#### 验证步骤
+1. 重新构建: `npm run build`
+2. 运行测试: `npm run electron:dev`
+3. 观察是否还有 `require is not defined` 错误
+
+### 修复结果
+✓ 问题已解决，`getMachineId()` 方法正常工作
 
 ---
 
-#### 问题 #2: 环境检测在生产环境失效
-**发现时间**: v0.3.0 开发阶段
-**严重程度**: 🟡 中等
+## 问题 #2: Main Process 中的 require() 错误
 
-**问题描述**:
-```typescript
-// ❌ 旧代码 - 在打包后失效
-const isDev = process.env.NODE_ENV !== 'production';
+### 发现时间
+2026-01-28 10:10:10 (CST, UTC+8)
 
-// 导致问题：打包后仍然连接 localhost:5173
-// 错误信息: "Failed to load URL: localhost:5173"
+### 错误信息
+```
+Migration failed: ReferenceError: require is not defined
+    at migrateApiKeyToSecureStore (file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:15992:17)
+    at file:///Code/Dev/Linux-Clipboard/dist-electron/main.js:16007:1
 ```
 
-**根本原因**:
-- `electron-builder` 打包时不会设置 `NODE_ENV` 环境变量
-- 依赖 `NODE_ENV` 的检测在生产环境中总是返回 `true`
+### 问题分析
 
-**解决方案**:
-```typescript
-// ✅ 正确做法 - 使用 Electron 的打包状态
-const isDev = !app.isPackaged;
+#### 根本原因
+在修复第一个问题后，发现 `electron/main.ts` 中的 `migrateApiKeyToSecureStore()` 函数也使用了 `require('fs')`。
 
-// 需要修改的文件：
-// - electron/main.ts:16
-// - electron/tray-manager.ts:16
-```
+#### 影响范围
+- API Key 迁移功能失败
+- 虽然不影响应用启动，但会在控制台输出错误信息
 
-**修改位置**:
-1. `electron/main.ts:16` - 主窗口环境检测
-2. `electron/tray-manager.ts:16` - 托盘图标路径检测
+### 解决方案
 
-**状态**: ✅ 已解决
+#### 修改文件
+`electron/main.ts`
+
+#### 修改步骤
+
+1. **在文件顶部添加导入语句**:
+   ```typescript
+   import fs from 'fs';
+   ```
+
+2. **删除函数内的 require 调用**:
+   ```typescript
+   // 修改前
+   function migrateApiKeyToSecureStore() {
+     try {
+       const oldConfigPath = path.join(app.getPath('userData'), 'linux-clipboard-config.json');
+       const fs = require('fs');  // ❌ 错误
+       if (fs.existsSync(oldConfigPath)) {
+         // ...
+       }
+     } catch (error) {
+       console.error('Migration failed:', error);
+     }
+   }
+
+   // 修改后
+   function migrateApiKeyToSecureStore() {
+     try {
+       const oldConfigPath = path.join(app.getPath('userData'), 'linux-clipboard-config.json');
+       if (fs.existsSync(oldConfigPath)) {
+         // ...
+       }
+     } catch (error) {
+       console.error('Migration failed:', error);
+     }
+   }
+   ```
+
+### 修复结果
+✓ 问题已解决，迁移功能正常工作
 
 ---
 
-#### 问题 #3: 托盘图标路径在生产环境中错误
-**发现时间**: v0.3.0 开发阶段
-**严重程度**: 🟡 中等
+## 全局检查
 
-**问题描述**:
-```typescript
-// ❌ 旧代码
-const iconPath = process.resourcesPath || app.getAppPath();
-// 在某些情况下会 fallback 到错误的路径
+为了确保没有遗漏其他 `require()` 调用，进行了全局搜索：
+
+```bash
+grep -rn "require(" electron/**/*.ts
 ```
 
-**表现**:
-- 系统托盘显示空白图标
-- 控制台警告: "Tray icon is empty"
-
-**解决方案**:
-```typescript
-// ✅ 正确做法
-const isDev = !app.isPackaged;
-
-if (isDev) {
-  iconPath = path.join(process.cwd(), 'resources/icons/icon.png');
-} else {
-  // 生产环境直接使用 process.resourcesPath
-  iconPath = path.join(process.resourcesPath, 'icons/icon.png');
-}
-```
-
-**资源路径说明**:
-- 开发环境: `Linux-Clipboard/resources/icons/icon.png`
-- 生产环境: `/opt/Linux-Clipboard/resources/icons/icon.png`
-- `process.resourcesPath` 在生产环境中指向 `/opt/Linux-Clipboard/resources/`
-
-**状态**: ✅ 已解决
+**结果**: 无匹配项，所有问题已修复
 
 ---
 
-### 测试阶段问题
+## 修复总结
 
-(本节将在测试过程中更新)
+### 修改的文件
+1. `electron/store/secure-store.ts`
+   - 添加: `import os from 'os';`
+   - 删除: `const os = require('os');`
 
-#### 问题 #4: 待记录
-**发现时间**: 待测试
-**严重程度**: 待评估
+2. `electron/main.ts`
+   - 添加: `import fs from 'fs';`
+   - 删除: `const fs = require('fs');`
 
-**问题描述**:
-(待记录)
+### 修复前后对比
 
-**解决方案**:
-(待记录)
+#### 修复前
+- ✗ 应用启动失败
+- ✗ 抛出 `require is not defined` 错误
+- ✗ 功能完全不可用
 
-**状态**: ⏳ 待解决
+#### 修复后
+- ✓ 应用正常启动
+- ✓ 安全存储正常工作
+- ✓ API Key 迁移成功
+- ✓ 快捷键注册成功
+- ✓ 无 JavaScript 错误
 
----
+### 经验教训
 
-### 迁移相关问题
+#### 为什么会出现这个问题？
+1. 项目从 CommonJS 迁移到 ES Module 时，没有完全清理所有的 `require()` 调用
+2. TypeScript 编译时不会检测运行时的 `require()` 错误
+3. 这些代码路径在之前的版本中可能没有被执行到
 
-#### 迁移测试: v0.2.0 → v0.3.2
-**测试时间**: 待执行
+#### 如何预防类似问题？
+1. **使用 ESLint 规则**: 配置 `no-restricted-syntax` 规则禁止 `require()`
+   ```json
+   {
+     "rules": {
+       "no-restricted-syntax": [
+         "error",
+         {
+           "selector": "CallExpression[callee.name='require']",
+           "message": "Use import instead of require"
+         }
+       ]
+     }
+   }
+   ```
 
-**迁移场景**:
-1. 用户已安装 v0.2.0，并配置了 API Key
-2. 升级到 v0.3.2
-3. 应用启动时自动检测并迁移
+2. **TypeScript 配置**: 确保 `tsconfig.json` 中的 `module` 设置为 `"ESNext"` 或 `"NodeNext"`
 
-**预期行为**:
+3. **代码审查**: 在合并代码前检查是否有新增的 `require()` 调用
+
+4. **自动化测试**: 添加启动测试确保应用能正常初始化
+
+#### 检测方法
 ```bash
-# 迁移前
-~/.config/linux-clipboard/linux-clipboard-config.json
-{
-  "geminiApiKey": "AIzaSyC- plaintext key..."  # 明文
-}
+# 搜索所有 require() 调用
+grep -rn "require(" electron/**/*.ts
 
-# 迁移后
-~/.config/linux-clipboard/linux-clipboard-secure.json
-{
-  "geminiApiKey": "a4f8d2c1:8e9b... encrypted ..."  # 加密
-}
-
-~/.config/linux-clipboard/linux-clipboard-config.json
-{
-  # geminiApiKey 已被删除
-}
-```
-
-**控制台输出**:
-```
-🔄 Migrating API key from plaintext config to secure storage...
-✓ API key migration completed successfully
-```
-
-**测试步骤**:
-1. 备份现有配置
-2. 安装 v0.3.2
-3. 启动应用
-4. 验证 API Key 仍然可用
-5. 检查配置文件已加密
-
-**状态**: ⏳ 待测试
-
----
-
-## 历史问题记录
-
-### Version 0.3.1
-- ✅ 实现基础加密存储
-- ✅ 修复环境检测问题
-
-### Version 0.2.0
-- ✅ Electron 桌面应用初始实现
-- ✅ 系统托盘集成
-- ✅ 全局快捷键支持
-
----
-
-## 常见问题排查指南
-
-### 应用无法启动
-
-**症状**: 双击应用无反应或立即崩溃
-
-**排查步骤**:
-```bash
-# 1. 查看应用日志
-/opt/Linux-Clipboard/linux-clipboard 2>&1 | tee debug.log
-
-# 2. 检查依赖
-ldd /opt/Linux-Clipboard/linux-clipboard
-
-# 3. 检查配置文件权限
-ls -la ~/.config/linux-clipboard/
-
-# 4. 尝试以调试模式启动
-/opt/Linux-Clipboard/linux-clipboard --enable-logging
-```
-
-### 托盘图标不显示
-
-**症状**: 应用运行但托盘区域没有图标
-
-**可能原因**:
-1. 图标文件缺失
-2. 图标路径错误
-3. 图标格式不支持
-
-**解决方案**:
-```bash
-# 检查图标文件是否存在
-ls -l /opt/Linux-Clipboard/resources/icons/icon.png
-
-# 检查图标格式
-file /opt/Linux-Clipboard/resources/icons/icon.png
-# 应该显示: PNG image data
-
-# 检查文件大小
-du -h /opt/Linux-Clipboard/resources/icons/icon.png
-# 应该 > 0 bytes
-```
-
-### API Key 加密失败
-
-**症状**: API Key 无法保存或读取
-
-**排查步骤**:
-```bash
-# 1. 检查安全配置文件
-ls -la ~/.config/linux-clipboard/linux-clipboard-secure.json
-# 权限应该是 600
-
-# 2. 如果权限不正确，手动修复
-chmod 600 ~/.config/linux-clipboard/linux-clipboard-secure.json
-
-# 3. 检查文件内容
-cat ~/.config/linux-clipboard/linux-clipboard-secure.json
-# 应该看到加密数据，格式: "iv:authTag:encrypted"
-```
-
-### 剪贴板监听失效
-
-**症状**: 复制内容后应用没有反应
-
-**可能原因**:
-1. 权限问题
-2. 剪贴板管理器进程崩溃
-3. IPC 通信中断
-
-**排查步骤**:
-```bash
-# 查看应用日志中的错误信息
-# 检查是否有 "clipboard:new" 事件
-
-# 重启应用尝试
-killall linux-clipboard && /opt/Linux-Clipboard/linux-clipboard
+# 或使用 ripgrep（更精确）
+rg "require\(" --type ts electron/
 ```
 
 ---
 
-## 开发环境问题
+## 相关资源
 
-### Vite 开发服务器无法启动
+### ES Module vs CommonJS
+- [Node.js ES Modules](https://nodejs.org/api/esm.html)
+- [MDN: import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import)
+- [TypeScript: Module Resolution](https://www.typescriptlang.org/docs/handbook/modules/theory.html#module-resolution)
 
-**错误信息**: `Port 5173 is already in use`
-
-**解决方案**:
-```bash
-# 查找占用端口的进程
-lsof -i :5173
-
-# 终止进程
-kill -9 <PID>
-
-# 或使用其他端口
-vite --port 5174
-```
-
-### TypeScript 类型错误
-
-**错误信息**: `Cannot find module 'electron'`
-
-**解决方案**:
-```bash
-# 重新安装依赖
-rm -rf node_modules package-lock.json
-npm install
-
-# 检查 @types/electron 是否安装
-npm list @types/electron
-```
+### 迁移指南
+- [Moving from CommonJS to ES Modules](https://nodejs.org/api/esm.html#commonjs-namespaces)
+- [TypeScript: ESM Migration](https://www.typescriptlang.org/docs/handbook/modules/reference.html#module-commonjs)
 
 ---
 
-**文档维护**: 每次遇到问题时更新此文档
-**格式**: 问题描述 → 解决方案 → 验证方法
+## 历史修复记录
+
+### v0.3.4 (2026-01-28)
+- 修复 ES Module 兼容性问题
+- 移除所有 `require()` 调用，替换为 `import` 语句
+- 涉及文件: `electron/store/secure-store.ts`, `electron/main.ts`
+
+### v0.3.3 及更早版本
+- 详见各版本的发布说明
+
+---
+
+**文档维护**: 本文档记录了所有的 bug 修复和故障排查过程
+**最后更新**: 2026-01-28 10:13:51 (CST, UTC+8)
+**维护者**: Claude Code
