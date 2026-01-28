@@ -113,9 +113,20 @@ echo ""
 echo -e "${BLUE}[6/7]${NC} 推送到远端..."
 git push origin main
 git push origin "${VERSION_TAG}"
+echo -e "${GREEN}✓ GitHub 推送成功${NC}"
+
+# 推送到 CNB
+echo -e "${CYAN}推送到 CNB...${NC}"
 git push cnb main
-git push cnb "${VERSION_TAG}"
-echo -e "${GREEN}✓ 已推送到 GitHub 和 CNB${NC}"
+
+# 尝试推送 Tag 到 CNB（可能会失败，但不影响整体流程）
+echo -e "${CYAN}推送 Tag 到 CNB...${NC}"
+if git push cnb "${VERSION_TAG}" 2>/dev/null; then
+    echo -e "${GREEN}✓ CNB Tag 推送成功${NC}"
+else
+    echo -e "${YELLOW}⚠️  CNB Tag 推送失败（可能 CNB 不支持或权限不足）${NC}"
+    echo -e "${YELLOW}提示: 代码已推送，Tag 可以稍后手动推送${NC}"
+fi
 echo ""
 
 # 7. 创建 Release
