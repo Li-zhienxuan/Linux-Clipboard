@@ -124,10 +124,8 @@ read -p "是否创建 GitHub Release? (y/n): " CREATE_RELEASE
 
 if [ "$CREATE_RELEASE" = "y" ]; then
     if [ -f "scripts/create-release.sh" ]; then
-        # 更新脚本中的版本号
-        sed -i "s/VERSION=.*/VERSION=${VERSION}/" scripts/create-release.sh
-        sed -i "s/v0.3.4/${VERSION_TAG}/g" scripts/create-release.sh
-        ./scripts/create-release.sh
+        # 使用环境变量传递版本号
+        VERSION="${VERSION}" ./scripts/create-release.sh
     else
         echo -e "${YELLOW}⚠ Release 创建脚本不存在${NC}"
     fi
