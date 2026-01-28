@@ -1,0 +1,84 @@
+name: Release to GitHub and CNB
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: |
+          npm run build
+          npm run electron:build:deb
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/linux-clipboard_${{ steps.version.outputs.VERSION }}_amd64.deb
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync to CNB
+        run: |
+          # 配置 CNB 远程（使用 Token）
+          git remote add cnb https://${{ secrets.CNB_TOKEN }}@cnb.cool/ZhienXuan/Linux-Clipboard.git
+
+          # 推送代码和标签到 CNB
+          git push cnb main
+          git push cnb ${{ github.ref_name }}
+
+      - name: Create CNB Release Info
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          cat > RELEASE_INFO_${VERSION}.txt <<EOF
+          =========================================
+          Linux-Clipboard ${VERSION} 发布信息
+          =========================================
+
+          发布时间: $(date '+%Y-%m-%d %H:%M:%S (CST, UTC+8)')
+          版本: ${VERSION}
+          CI/CD: GitHub Actions 自动发布
+
+          安装包:
+            文件名: linux-clipboard_${VERSION}_amd64.deb
+            下载: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/${VERSION}/linux-clipboard_${VERSION}_amd64.deb
+
+          仓库链接:
+            GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard
+            CNB: https://cnb.cool/ZhienXuan/Linux-Clipboard
+          EOF
+
+          # 上传到 CNB（如果 CNB 支持 Releases）
+          # CNB 可能不直接支持 Releases API，这里作为示例保留
+          echo "CNB Release info created"
+
+      - name: Notify completion
+        run: |
+          echo "✓ Release ${{ steps.version.outputs.VERSION }} created successfully"
+          echo "✓ GitHub: https://github.com/Li-zhienxuan/Linux-Clipboard/releases/tag/${{ steps.version.outputs.VERSION }}"
+          echo "✓ CNB: https://cnb.cool/ZhienXuan/Linux-Clipboard"
