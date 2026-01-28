@@ -10,6 +10,14 @@ export interface ElectronAPI {
   setSetting: (key: string, value: any) => Promise<void>;
   getApiKey: () => Promise<string>;
   setApiKey: (apiKey: string) => Promise<void>;
+  getVersion: () => Promise<{
+    version: string;
+    electronVersion: string;
+    chromeVersion: string;
+    nodeVersion: string;
+    platform: string;
+    arch: string;
+  }>;
   platform: string;
   isElectron: boolean;
 }
@@ -37,6 +45,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // API Key 管理
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   setApiKey: (apiKey: string) => ipcRenderer.invoke('set-api-key', apiKey),
+
+  // 获取版本信息
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
 
   // 平台信息
   platform: process.platform,

@@ -17,6 +17,14 @@ declare global {
       setSetting: (key: string, value: any) => Promise<void>;
       getApiKey: () => Promise<string>;
       setApiKey: (apiKey: string) => Promise<void>;
+      getVersion: () => Promise<{
+        version: string;
+        electronVersion: string;
+        chromeVersion: string;
+        nodeVersion: string;
+        platform: string;
+        arch: string;
+      }>;
       platform: string;
       isElectron: boolean;
     };
@@ -35,12 +43,22 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'history' | 'starred'>('history');
   const [showToast, setShowToast] = useState<{message: string, type: 'info' | 'error'} | null>(null);
-  
+
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [tempApiKey, setTempApiKey] = useState('');
-  
+
+  // Version info state
+  const [appVersion, setAppVersion] = useState<{
+    version: string;
+    electronVersion: string;
+    chromeVersion: string;
+    nodeVersion: string;
+    platform: string;
+    arch: string;
+  } | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Constants for Time Filtering - Precision labels as requested
@@ -70,6 +88,11 @@ const App: React.FC = () => {
       window.electronAPI.getApiKey().then(key => {
         setApiKey(key || '');
         setTempApiKey(key || '');
+      });
+
+      // 获取版本信息
+      window.electronAPI.getVersion().then(versionInfo => {
+        setAppVersion(versionInfo);
       });
     }
   }, []);
@@ -517,6 +540,24 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* 版本信息 */}
+            {appVersion && (
+              <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Version</span>
+                  <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                    v{appVersion.version}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-500">
+                  <div>Electron: {appVersion.electronVersion}</div>
+                  <div>Node: {appVersion.nodeVersion}</div>
+                  <div>Chrome: {appVersion.chromeVersion}</div>
+                  <div>{appVersion.platform} {appVersion.arch}</div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -561,7 +602,12 @@ const App: React.FC = () => {
            {timeValue && (
              <span className="text-blue-500/60 animate-pulse">Filtering: {timeValue}</span>
            )}
-           <span className="text-gray-800">SMART CLIPBOARD PRO V2</span>
+           <span className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-3 py-1 rounded border border-blue-500/30">
+             <span className="text-blue-400">Linux-Clipboard</span>
+             {appVersion && (
+               <span className="ml-2 text-purple-400 font-bold">{appVersion.version}</span>
+             )}
+           </span>
         </div>
       </div>
     </div>

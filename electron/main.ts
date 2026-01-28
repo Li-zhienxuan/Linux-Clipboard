@@ -7,6 +7,9 @@ import { ShortcutsManager } from './shortcuts-manager';
 import { ConfigStore } from './store/config-store';
 import { SecureConfigStore } from './store/secure-store';
 
+// 读取应用版本
+const APP_VERSION = app.getVersion();
+
 // 处理 root 用户运行时的沙箱问题
 if (process.getuid && process.getuid() === 0) {
   app.commandLine.appendSwitch('no-sandbox');
@@ -63,7 +66,7 @@ function createWindow() {
     height: 700,
     show: false, // 先隐藏，等加载完成后再显示
     frame: true,
-    title: 'Linux-Clipboard',
+    title: `Linux-Clipboard v${APP_VERSION}`,
     autoHideMenuBar: true, // 隐藏菜单栏
     webPreferences: {
       preload: path.join(getBasePath(), 'dist-electron', 'preload.js'),
@@ -121,6 +124,18 @@ function setupIpc() {
 
   // 获取所有设置
   ipcMain.handle('settings:get', () => store.getAll());
+
+  // 获取应用版本信息
+  ipcMain.handle('app:getVersion', () => {
+    return {
+      version: APP_VERSION,
+      electronVersion: process.versions.electron,
+      chromeVersion: process.versions.chrome,
+      nodeVersion: process.versions.node,
+      platform: process.platform,
+      arch: process.arch
+    };
+  });
 
   // 设置单个配置项
   ipcMain.handle('settings:set', (_, key: string, value: any) => {
