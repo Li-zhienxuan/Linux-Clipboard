@@ -4,8 +4,8 @@
 
 ### 📦 版本信息
 - **版本**: v0.3.5
-- **发布时间**: 2026-01-28 15:02:36 (CST, UTC+8)
-- **基于版本**: v0.3.4
+- **发布时间**: 2026-01-28 15:42:45 (CST, UTC+8)
+- **基于版本**: v0.3.6
 
 ### 📦 安装
 
@@ -25,4 +25,4 @@ sudo dpkg -i linux-clipboard_0.3.5_amd64.deb
 
 ---
 
-**完整更新日志**: https://github.com/Li-zhienxuan/Linux-Clipboard/compare/v0.3.4...v0.3.5
+**完整更新日志**: https://github.com/Li-zhienxuan/Linux-Clipboard/compare/v0.3.6...v0.3.5
