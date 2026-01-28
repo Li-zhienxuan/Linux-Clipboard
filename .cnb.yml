@@ -1,0 +1,96 @@
+# CNB 云原生构建配置文件
+# 文档: https://cnb.cool/docs/cloud-native-build
+
+# main 分支推送触发 - 前端构建
+main:
+  push:
+    - name: 前端构建
+      docker:
+        image: node:22
+        volumes:
+          - node_modules:copy-on-write
+      stages:
+        - name: 安装依赖
+          script: npm ci
+        - name: 构建前端
+          script: |
+            echo "📦 开始构建前端..."
+            npm run build
+            echo "✅ 前端构建完成"
+            ls -lh dist/
+
+# tags 推送触发 - 完整发布流程
+tags:
+  push:
+    - name: 构建 DEB 安装包
+      docker:
+        image: node:22
+        volumes:
+          - node_modules:copy-on-write
+      stages:
+        - name: 安装依赖
+          script: npm ci
+        - name: 构建前端
+          script: npm run build
+        - name: 安装构建工具
+          script: |
+            echo "📦 安装构建依赖..."
+            apt-get update
+            apt-get install -y fakeroot binutils
+        - name: 构建 Electron 应用
+          script: |
+            echo "🔨 构建 Electron 应用..."
+            npm run electron:build:deb
+        - name: 显示构建结果
+          script: |
+            echo "✅ 构建完成！"
+            echo "📦 构建产物:"
+            ls -lh release/
+            if [ -f release/*.deb ]; then
+              echo ""
+              echo "📦 DEB 包信息:"
+              dpkg -I release/*.deb | grep -E "Package|Version|Architecture|Installed-Size"
+            fi
+      failStages:
+        - name: 构建失败通知
+          script: |
+            echo "❌ 构建失败！"
+            echo "请检查构建日志并修复错误"
+
+# PR/MR 触发 - 代码检查
+main:
+  pull_request:
+    - name: 代码质量检查
+      docker:
+        image: node:22
+        volumes:
+          - node_modules:copy-on-write
+      stages:
+        - name: 安装依赖
+          script: npm ci
+        - name: 构建检查
+          script: |
+            echo "🔍 检查代码构建..."
+            npm run build
+            echo "✅ 代码构建检查通过"
+      failStages:
+        - name: 检查失败通知
+          script: |
+            echo "❌ 代码检查失败！"
+            echo "请修复代码后再提交 PR"
+
+# 手动触发（用于测试）
+$:
+  manual:
+    - name: 快速测试
+      docker:
+        image: node:22
+        volumes:
+          - node_modules:copy-on-write
+      stages:
+        - name: 测试构建
+          script: |
+            echo "🔧 手动触发测试构建"
+            npm ci
+            npm run build
+            echo "✅ 测试构建完成"
