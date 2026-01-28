@@ -37,6 +37,7 @@ Thumbs.db
 
 # Token files (安全：不要提交到 Git)
 .github-token
+.github-token-local
 .cnb-token
 .git-credentials
 *.token
