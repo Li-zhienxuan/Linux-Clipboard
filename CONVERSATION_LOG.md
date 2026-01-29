@@ -161,5 +161,70 @@
 
 ---
 
+---
+
+## 版本号覆盖修复（2026-01-29 17:07）
+
+### 问题
+
+用户尝试重新发布 v0.4.4（相同版本号）时遇到错误：
+```
+npm error Version not changed
+```
+
+用户需求：
+- 需要能够覆盖/重新发布相同版本号
+- 不想自动递增版本号（这样会让已构建的 AppImage 失效）
+
+### 解决方案
+
+**修改文件**：`scripts/release-version.sh`
+
+**关键改动**：
+
+1. **允许版本号相同**：
+```bash
+if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+    npm version "$VERSION" --no-git-tag-version --allow-same-version
+else
+    npm version "$VERSION" --no-git-tag-version
+fi
+```
+
+2. **自动处理已存在的 tags**：
+```bash
+if git rev-parse "${VERSION_TAG}" >/dev/null 2>&1; then
+    git tag -d "${VERSION_TAG}"
+    git push origin ":refs/tags/${VERSION_TAG}" 2>/dev/null || true
+fi
+```
+
+3. **智能跳过空提交**：
+```bash
+if git diff --cached --quiet; then
+    echo "没有检测到文件变化，跳过提交"
+else
+    git commit -m "..."
+fi
+```
+
+4. **同时构建 deb 和 AppImage**：
+```bash
+npm run electron:build:all  # 改为构建两种格式
+```
+
+### 效果
+
+✅ 现在可以重新发布相同版本号
+✅ 自动清理旧的 Git tags
+✅ 自动构建 deb + AppImage 两种格式
+✅ 无需手动干预
+
+### 提交
+
+`9478139` - fix: allow version override in release script
+
+---
+
 *本记录在每次重要对话后更新*
-*最后更新：2026-01-29 15:57 CST*
+*最后更新：2026-01-29 17:10 CST*
