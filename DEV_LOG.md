@@ -1,6 +1,29 @@
 # Linux-Clipboard 开发日志
 
-## 当前版本：v0.4.3
+## 当前版本：v0.4.4
+
+---
+
+## 版本历史
+
+### v0.4.4 (2026-01-29)
+
+**发布脚本改进**：
+- ✅ 允许版本号覆盖/重新发布相同版本
+- ✅ 使用 `--allow-same-version` 标志
+- ✅ 自动删除并重新创建已存在的 Git tags
+- ✅ 智能跳过没有变化的 git commit
+- ✅ 构建从 deb-only 改为 deb+AppImage 同时构建
+
+**解决问题**：
+- ✅ 修复 "Version not changed" 错误
+- ✅ 支持重新构建相同版本（如修复 AppImage）
+- ✅ 无需手动删除 tags 或递增版本号
+
+**提交**：`9478139` - fix: allow version override in release script
+
+**使用场景**：
+当你需要用相同版本号重新发布时（例如修复构建问题），脚本现在会优雅处理而不是失败。
 
 ---
 
