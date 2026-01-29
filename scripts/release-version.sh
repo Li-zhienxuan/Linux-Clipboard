@@ -44,7 +44,16 @@ echo ""
 
 # 1. 更新版本号
 echo -e "${BLUE}[1/7]${NC} 更新 package.json..."
-npm version "$VERSION" --no-git-tag-version
+
+# 检查版本号是否相同
+if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+    echo -e "${YELLOW}注意: 版本号与当前版本相同，将覆盖${NC}"
+    # 使用 --allow-same-version 允许相同版本号
+    npm version "$VERSION" --no-git-tag-version --allow-same-version
+else
+    npm version "$VERSION" --no-git-tag-version
+fi
+
 echo -e "${GREEN}✓ 版本已更新${NC}"
 echo ""
 
@@ -54,10 +63,10 @@ npm run build
 echo -e "${GREEN}✓ 构建成功${NC}"
 echo ""
 
-# 3. 构建 deb 包
-echo -e "${BLUE}[3/7]${NC} 构建 deb 包..."
-npm run electron:build:deb
-echo -e "${GREEN}✓ deb 包构建成功${NC}"
+# 3. 构建 deb 和 AppImage
+echo -e "${BLUE}[3/7]${NC} 构建 deb 包和 AppImage..."
+npm run electron:build:all
+echo -e "${GREEN}✓ deb 包和 AppImage 构建成功${NC}"
 echo ""
 
 # 4. 生成 Release Notes
@@ -98,15 +107,29 @@ echo ""
 # 5. Git 提交
 echo -e "${BLUE}[5/7]${NC} Git 提交..."
 git add package.json package-lock.json "RELEASE_NOTES_${VERSION}.md"
-git commit -m "chore: release version ${VERSION_TAG}
+
+# 尝试提交，如果没有任何变化则跳过
+if git diff --cached --quiet; then
+    echo -e "${YELLOW}注意: 没有检测到文件变化，跳过提交${NC}"
+else
+    git commit -m "chore: release version ${VERSION_TAG}
 
 - Update version to ${VERSION}
 - Generate Release Notes
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+    echo -e "${GREEN}✓ 提交已创建${NC}"
+fi
+
+# 检查 tag 是否已存在
+if git rev-parse "${VERSION_TAG}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}注意: Tag ${VERSION_TAG} 已存在，将删除并重新创建${NC}"
+    git tag -d "${VERSION_TAG}"
+    git push origin ":refs/tags/${VERSION_TAG}" 2>/dev/null || true
+fi
 
 git tag -a "${VERSION_TAG}" -m "Release ${VERSION_TAG}"
-echo -e "${GREEN}✓ 提交和 Tag 已创建${NC}"
+echo -e "${GREEN}✓ Tag 已创建${NC}"
 echo ""
 
 # 6. 推送
