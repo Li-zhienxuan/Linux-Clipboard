@@ -1,10 +1,55 @@
 # Linux-Clipboard 开发日志
 
-## 当前版本：v0.3.9
+## 当前版本：v0.4.3
 
 ---
 
 ## 版本历史
+
+### v0.4.3 (2026-01-29)
+
+**构建系统升级**：
+- ✅ 添加 AppImage 构建支持（通用 Linux 格式）
+- ✅ 新增 `npm run electron:build:all` 同时构建 deb + AppImage
+- ✅ 新增 `npm run electron:build:appimage` 单独构建 AppImage
+- ✅ 更新发布脚本，支持同时上传两种格式到 GitHub
+
+**发布工具改进**：
+- ✅ `scripts/create-release.sh` 现在会检查并上传 deb 和 AppImage
+- ✅ `scripts/release.sh` 添加 AppImage 安装说明
+- ✅ Release notes 包含两种格式的下载和安装说明
+
+**用户收益**：
+- **deb 包**：Debian/Ubuntu 用户安装使用
+- **AppImage**：所有 Linux 发行版通用，无需安装
+
+**提交**：`aca635a` - feat: add AppImage build support and update release scripts
+
+**使用方法**：
+```bash
+# 构建两种格式
+npm run electron:build:all
+
+# 或单独构建
+npm run electron:build:deb      # 仅 deb
+npm run electron:build:appimage # 仅 AppImage
+
+# 发布到 GitHub（会同时上传两种格式）
+./scripts/create-release.sh
+```
+
+---
+
+### v0.4.0-v0.4.2 (2026-01-29)
+
+**构建修复**：
+- ✅ 修复版本号动态读取问题
+- ✅ 使用 Vite define 注入版本号，避免直接导入 JSON
+
+**提交**：
+- `833a604` - fix: use Vite define for version injection instead of JSON import
+
+---
 
 ### v0.3.9 (2026-01-29)
 
