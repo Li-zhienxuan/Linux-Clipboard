@@ -1,6 +1,27 @@
 # Linux-Clipboard 开发日志
 
-## 当前版本：v0.3.8
+## 当前版本：v0.3.9
+
+---
+
+## 版本历史
+
+### v0.3.9 (2026-01-29)
+
+**新功能**：
+- ✅ 添加应用标题栏：大号 "LinuxClipboard" 标题 + 版本号徽章
+- ✅ 版本号动态从 package.json 读取，构建后自动更新
+
+**改进**：
+- ✅ 删除底部状态栏的重复版本号显示
+- ✅ 类型定义重构：从根目录移至 src/types.tsx
+- ✅ 图片复制功能优化（已测试通过）
+
+**文档**：
+- ✅ 添加 DEV_LOG.md 开发日志
+- ✅ 添加 CONVERSATION_LOG.md 对话记录
+
+**提交**：`8e04510` - feat: add app title header and improve version display
 
 ---
 
