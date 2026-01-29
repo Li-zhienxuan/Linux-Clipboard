@@ -73,11 +73,28 @@ if ! git rev-parse "${VERSION_TAG}" >/dev/null 2>&1; then
     echo ""
 fi
 
-# 检查 deb 文件是否存在
+# 检查构建文件是否存在
 DEB_FILE="release/linux-clipboard_${VERSION}_amd64.deb"
+APPIMAGE_FILE="release/Linux-Clipboard-${VERSION}.AppImage"
+
+MISSING_FILES=()
+
 if [ ! -f "$DEB_FILE" ]; then
-    echo "✗ 找不到 deb 文件: $DEB_FILE"
-    echo "请先运行: npm run electron:build:deb"
+    MISSING_FILES+=("$DEB_FILE")
+fi
+
+if [ ! -f "$APPIMAGE_FILE" ]; then
+    MISSING_FILES+=("$APPIMAGE_FILE")
+fi
+
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "✗ 找不到以下构建文件:"
+    for file in "${MISSING_FILES[@]}"; do
+        echo "  - $file"
+    done
+    echo ""
+    echo "请先运行: npm run electron:build:all"
+    echo "这将会同时构建 deb 和 AppImage 格式"
     exit 1
 fi
 
@@ -97,9 +114,17 @@ if [ ! -f "$RELEASE_NOTES_FILE" ]; then
 
 ### 📦 安装
 
+#### DEB 包 (Debian/Ubuntu)
 \`\`\`bash
 wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/${VERSION_TAG}/linux-clipboard_${VERSION}_amd64.deb
 sudo dpkg -i linux-clipboard_${VERSION}_amd64.deb
+\`\`\`
+
+#### AppImage (通用 Linux)
+\`\`\`bash
+wget https://github.com/Li-zhienxuan/Linux-Clipboard/releases/download/${VERSION_TAG}/Linux-Clipboard-${VERSION}.AppImage
+chmod +x Linux-Clipboard-${VERSION}.AppImage
+./Linux-Clipboard-${VERSION}.AppImage
 \`\`\`
 
 ## ✨ 功能特性
@@ -116,9 +141,14 @@ fi
 # 创建 Release
 echo "正在创建 GitHub Release..."
 echo ""
+echo "将要上传的文件:"
+echo "  - $DEB_FILE"
+echo "  - $APPIMAGE_FILE"
+echo ""
 
 gh release create "${VERSION_TAG}" \
     "$DEB_FILE" \
+    "$APPIMAGE_FILE" \
     --title "${VERSION_TAG} - Release / 发布版本" \
     --notes-file "$RELEASE_NOTES_FILE"
 

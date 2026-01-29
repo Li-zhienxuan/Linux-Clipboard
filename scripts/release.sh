@@ -149,18 +149,29 @@ show_release_info() {
     echo "   - 访问: https://github.com/你的用户名/Linux-Clipboard/releases"
     echo "   - 点击 'Draft a new release'"
     echo "   - 选择标签: v$version"
-    echo "   - 上传 .deb 文件: release/linux-clipboard_${version}_amd64.deb"
+    echo "   - 上传构建文件:"
+    echo "     • release/linux-clipboard_${version}_amd64.deb"
+    echo "     • release/Linux-Clipboard-${version}.AppImage"
     echo ""
 
-    echo "3. 测试安装:"
-    echo "   sudo ./install.sh release/linux-clipboard_${version}_amd64.deb"
+    echo "3. 构建应用包（如尚未构建）:"
+    echo "   npm run electron:build:all"
     echo ""
 
-    echo "4. 查看提交历史:"
+    echo "4. 测试安装:"
+    echo "   # deb 包"
+    echo "   sudo dpkg -i release/linux-clipboard_${version}_amd64.deb"
+    echo ""
+    echo "   # AppImage (无需安装)"
+    echo "   chmod +x release/Linux-Clipboard-${version}.AppImage"
+    echo "   ./release/Linux-Clipboard-${version}.AppImage"
+    echo ""
+
+    echo "5. 查看提交历史:"
     echo "   git log --oneline -5"
     echo ""
 
-    echo "5. 查看标签:"
+    echo "6. 查看标签:"
     echo "   git tag -l"
     echo ""
 }
@@ -180,7 +191,8 @@ generate_release_notes() {
 
 ## 📦 下载
 
-- **Linux .deb**: \`linux-clipboard_${version}_amd64.deb\`
+- **Linux .deb** (Debian/Ubuntu): \`linux-clipboard_${version}_amd64.deb\`
+- **Linux AppImage** (通用Linux): \`Linux-Clipboard-${version}.AppImage\`
 
 ## ✨ 新功能
 
@@ -207,6 +219,8 @@ generate_release_notes() {
 
 ## 📝 安装
 
+### 方式 1: DEB 包 (Debian/Ubuntu)
+
 \`\`\`bash
 # 下载 .deb 包
 wget https://github.com/你的用户名/Linux-Clipboard/releases/download/v${version}/linux-clipboard_${version}_amd64.deb
@@ -217,6 +231,24 @@ sudo dpkg -i linux-clipboard_${version}_amd64.deb
 # 如果有依赖问题，运行:
 sudo apt-get install -f -y
 \`\`\`
+
+### 方式 2: AppImage (通用 Linux)
+
+\`\`\`bash
+# 下载 AppImage
+wget https://github.com/你的用户名/Linux-Clipboard/releases/download/v${version}/Linux-Clipboard-${version}.AppImage
+
+# 添加执行权限
+chmod +x Linux-Clipboard-${version}.AppImage
+
+# 运行
+./Linux-Clipboard-${version}.AppImage
+\`\`\`
+
+**AppImage 优势**:
+- 无需安装，直接运行
+- 适用于所有 Linux 发行版
+- 自包含所有依赖
 
 ## 🚀 使用
 
