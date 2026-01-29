@@ -1,7 +1,19 @@
 
 import React from 'react';
-import { ClipboardItem } from '../types';
 import { Copy, Trash2, Star, Image as ImageIcon, FileText, Code, Link as LinkIcon, Clock, ExternalLink, Target } from 'lucide-react';
+
+// 类型定义
+export type ContentType = 'text' | 'image' | 'link' | 'code';
+
+export type ClipboardItem = {
+  id: string;
+  type: ContentType;
+  content: string;
+  description?: string;
+  timestamp: number;
+  tags: string[];
+  isFavorite: boolean;
+};
 
 interface ClipboardCardProps {
   item: ClipboardItem;

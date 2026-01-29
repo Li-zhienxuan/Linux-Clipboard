@@ -1,9 +1,26 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X, Minimize2, Settings } from 'lucide-react';
-import { ClipboardItem, ContentType, TimeMode } from './types';
 import { ClipboardCard } from './components/ClipboardCard';
 import { analyzeImage, suggestTags } from './services/geminiService';
+import packageInfo from '../../package.json';
+
+// 应用版本号
+const APP_VERSION = packageInfo.version;
+
+// 类型定义
+export type ContentType = 'text' | 'image' | 'link' | 'code';
+export type TimeMode = 'all' | 'year' | 'month' | 'week';
+
+export type ClipboardItem = {
+  id: string;
+  type: ContentType;
+  content: string;
+  description?: string;
+  timestamp: number;
+  tags: string[];
+  isFavorite: boolean;
+};
 
 // Electron API 类型声明
 declare global {
@@ -92,7 +109,10 @@ const App: React.FC = () => {
 
       // 获取版本信息
       window.electronAPI.getVersion().then(versionInfo => {
+        console.log('版本信息:', versionInfo);
         setAppVersion(versionInfo);
+      }).catch(err => {
+        console.error('获取版本信息失败:', err);
       });
     }
   }, []);
@@ -311,6 +331,18 @@ const App: React.FC = () => {
       {/* Search Header */}
       <div className="p-8 pb-4 bg-gray-900/40 backdrop-blur-3xl border-b border-white/5 relative z-40">
         <div className="max-w-4xl mx-auto w-full space-y-6">
+          {/* 应用标题 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                LinuxClipboard
+              </h1>
+              <span className="px-3 py-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg text-sm font-bold text-purple-400">
+                v{appVersion?.version || APP_VERSION}
+              </span>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 shadow-inner">
               {(['history', 'starred'] as const).map(tab => (
@@ -445,12 +477,28 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   {itemsForDate.map((item, idx) => (
-                    <ClipboardCard 
+                    <ClipboardCard
                       key={item.id}
-                      item={item} 
+                      item={item}
                       onCopy={(i) => {
-                        navigator.clipboard.writeText(i.content);
-                        notify("Added to clipboard");
+                        if (i.type === 'image') {
+                          // 对于图片，使用 ClipboardItem 写入图片数据
+                          fetch(i.content)
+                            .then(res => res.blob())
+                            .then(blob => {
+                              const item = new ClipboardItem({ 'image/png': blob });
+                              navigator.clipboard.write([item]);
+                              notify("Image copied to clipboard");
+                            })
+                            .catch(err => {
+                              console.error('Failed to copy image:', err);
+                              notify("Failed to copy image", 'error');
+                            });
+                        } else {
+                          // 对于文本、代码、链接，使用 writeText
+                          navigator.clipboard.writeText(i.content);
+                          notify("Added to clipboard");
+                        }
                       }}
                       onDelete={(id) => setItems(prev => prev.filter(i => i.id !== id))}
                       onToggleFavorite={(id) => setItems(prev => prev.map(i => i.id === id ? { ...i, isFavorite: !i.isFavorite } : i))}
@@ -602,12 +650,6 @@ const App: React.FC = () => {
            {timeValue && (
              <span className="text-blue-500/60 animate-pulse">Filtering: {timeValue}</span>
            )}
-           <span className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-3 py-1 rounded border border-blue-500/30">
-             <span className="text-blue-400">Linux-Clipboard</span>
-             {appVersion && (
-               <span className="ml-2 text-purple-400 font-bold">{appVersion.version}</span>
-             )}
-           </span>
         </div>
       </div>
     </div>
