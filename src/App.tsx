@@ -3,23 +3,13 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Search, Plus, Loader2, Sparkles, Filter, Trash2, Clipboard, Scissors, CheckCircle2, Command, AlertCircle, Calendar, CalendarDays, History, Clock, LayoutGrid, ChevronRight, X, Minimize2, Settings } from 'lucide-react';
 import { ClipboardCard } from './components/ClipboardCard';
 import { analyzeImage, suggestTags } from './services/geminiService';
+import type { ContentType, TimeMode, ClipboardItem } from './types';
 
 // 应用版本号 - 在构建时从 package.json 读取
 const APP_VERSION = '__APP_VERSION__';
 
-// 类型定义
-export type ContentType = 'text' | 'image' | 'link' | 'code';
-export type TimeMode = 'all' | 'year' | 'month' | 'week';
-
-export type ClipboardItem = {
-  id: string;
-  type: ContentType;
-  content: string;
-  description?: string;
-  timestamp: number;
-  tags: string[];
-  isFavorite: boolean;
-};
+// 重新导出类型以保持向后兼容
+export type { ContentType, TimeMode, ClipboardItem };
 
 // Electron API 类型声明
 declare global {
