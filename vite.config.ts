@@ -48,6 +48,19 @@ export default defineConfig(({ mode }) => {
           }
         ])
       ],
+      build: {
+        rollupOptions: {
+          output: {
+            // 手动代码分割，减小包体积
+            manualChunks: {
+              // React 相关
+              'react-vendor': ['react', 'react-dom'],
+              // UI 图标
+              'icons': ['lucide-react'],
+            }
+          }
+        }
+      },
       define: {
         '__APP_VERSION__': JSON.stringify(APP_VERSION),
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

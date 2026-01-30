@@ -36,8 +36,16 @@ Thumbs.db
 *.pem
 
 # Token files (安全：不要提交到 Git)
+token/
 .github-token
 .github-token-local
 .cnb-token
+.cnb.yml
 .git-credentials
 *.token
+
+# 开发日志
+dev_logs/
+
+# 阁楼 - 存放无价值的旧文件
+.attic/

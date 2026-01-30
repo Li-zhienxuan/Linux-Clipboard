@@ -5,9 +5,6 @@ import { ClipboardCard } from './components/ClipboardCard';
 import { analyzeImage, suggestTags } from './services/geminiService';
 import type { ContentType, TimeMode, ClipboardItem } from './types';
 
-// 应用版本号 - 在构建时从 package.json 读取
-const APP_VERSION = '__APP_VERSION__';
-
 // 重新导出类型以保持向后兼容
 export type { ContentType, TimeMode, ClipboardItem };
 
@@ -65,6 +62,9 @@ const App: React.FC = () => {
     arch: string;
   } | null>(null);
 
+  // Web 模式下的版本号
+  const [webVersion, setWebVersion] = useState('0.4.4');
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Constants for Time Filtering - Precision labels as requested
@@ -103,6 +103,15 @@ const App: React.FC = () => {
       }).catch(err => {
         console.error('获取版本信息失败:', err);
       });
+    } else {
+      // Web 模式：动态读取 package.json
+      fetch('/package.json')
+        .then(res => res.json())
+        .then(pkg => setWebVersion(pkg.version))
+        .catch(() => {
+          // 如果读取失败，保持默认值
+          console.warn('无法读取 package.json，使用默认版本号');
+        });
     }
   }, []);
 
@@ -327,7 +336,7 @@ const App: React.FC = () => {
                 LinuxClipboard
               </h1>
               <span className="px-3 py-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg text-sm font-bold text-purple-400">
-                v{appVersion?.version || APP_VERSION}
+                v{appVersion?.version || webVersion}
               </span>
             </div>
           </div>

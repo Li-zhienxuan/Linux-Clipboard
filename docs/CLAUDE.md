@@ -4,128 +4,187 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-**Linux-Clipboard** 是一个基于 React 19 + TypeScript 的智能剪贴板管理器，使用 Google Gemini AI 提供图像识别和智能搜索功能。采用 Spotlight 风格设计，具有 Glassmorphism（磨砂玻璃）视觉效果。
+**Linux-Clipboard** 是一个基于 Electron + React + TypeScript 的智能剪贴板管理器，使用 Google Gemini AI 提供图像识别和智能搜索功能。采用 Spotlight 风格设计，具有 Glassmorphism（磨砂玻璃）视觉效果。
 
-## 常用命令
+**当前版本**: v0.4.4
+
+## 常用开发命令
 
 ```bash
-# 开发服务器（运行在 localhost:3000）
+# ========== 开发 ==========
+# Electron 开发模式（推荐）- 启动 Electron + Vite 热重载
+npm run electron:dev
+
+# 仅 React 开发服务器
 npm run dev
 
-# 生产构建
+# ========== 构建 ==========
+# 前端构建
 npm run build
 
-# 预览生产构建
-npm run preview
+# 构建所有安装包（带进度显示）
+npm run electron:build:all:progress
+
+# 仅构建 DEB 包
+npm run electron:build:deb
+
+# 仅构建 AppImage
+npm run electron:build:appimage
+
+# ========== 工具 ==========
+# 统一管理菜单（推荐）- 所有操作的交互式入口
+bash scripts/menu.sh
+
+# 终止所有开发进程
+bash scripts/kill-all.sh
+
+# ========== 发布 ==========
+# 发布新版本（交互式，更新版本号→构建→提交→推送→创建 Release）
+# 运行后会提示输入版本号
+bash scripts/release-version.sh
+
+# 创建 GitHub Release（上传 deb/AppImage）
+bash scripts/create-release.sh
 ```
 
-## 环境变量配置
+## 项目架构
 
-项目需要 Google Gemini API 密钥：
+### 技术栈
+- **前端**: React 19.2.3 + TypeScript 5.8.2 + Vite 6.2.0
+- **桌面**: Electron 33.4.11
+- **AI**: Google Gemini AI (@google/genai 1.34.0)
+- **UI**: Tailwind CSS + Lucide React 0.562.0
 
-- 在 `.env.local` 文件中设置 `GEMINI_API_KEY`
-- API 密钥通过 `vite.config.ts` 注入为 `process.env.API_KEY`
-- 可从 [Google AI Studio](https://aistudio.google.com/) 获取
-
-## 架构设计
-
-### 目录结构
-
+### 目录结构（精简版）
 ```
-linux-clipboard/
-├── App.tsx                  # 主应用组件（包含完整状态管理和业务逻辑）
-├── index.tsx                # React 应用入口
-├── types.ts                 # TypeScript 类型定义
-├── components/
-│   └── ClipboardCard.tsx    # 剪贴板卡片展示组件
-├── services/
-│   └── geminiService.ts     # Gemini AI 服务封装
-├── vite.config.ts           # Vite 构建配置
-└── tsconfig.json            # TypeScript 配置
+Linux-Clipboard/
+├── src/                      # React 前端源码
+│   ├── App.tsx              # 主应用组件（状态管理 + 业务逻辑）
+│   ├── components/          # React 组件
+│   ├── services/            # API 服务
+│   └── types.ts             # TypeScript 类型定义
+├── electron/                # Electron 主进程
+│   ├── main.ts              # 应用入口 + IPC 处理
+│   ├── preload.ts           # 预加载脚本（IPC 桥接）
+│   ├── clipboard-manager.ts # 剪贴板监控
+│   ├── tray-manager.ts      # 系统托盘
+│   ├── shortcuts-manager.ts # 全局快捷键
+│   └── store/               # 配置存储
+│       ├── config-store.ts   # 普通配置
+│       └── secure-store.ts   # 安全存储（API Key）
+├── scripts/                 # 构建和自动化脚本
+│   ├── menu.sh              # 统一管理菜单 ⭐
+│   ├── kill-all.sh          # 终止所有进程
+│   └── build-with-progress.sh  # 带进度的构建
+├── docs/                    # 项目文档
+├── dev_logs/               # 改动记录（DEV_LOG.md, CONVERSATION_LOG.md）
+├── token/                  # 敏感文件（.gitignore）
+├── .attic/                 # 旧文件归档（.gitignore）
+└── resources/              # 资源文件（图标等）
 ```
 
-### 核心数据类型
+### Electron 架构要点
 
-项目在 [types.ts](types.ts) 中定义了以下核心类型：
+**主进程与渲染进程通信**：
+- 使用 `ipcMain.handle` 和 `ipcRenderer.invoke` 进行双向通信
+- preload.ts 暴露安全的 API 给渲染进程（通过 `contextBridge.exposeInMainWorld`）
+- 所有剪贴板操作在主进程进行（安全考虑）
 
-- **`ContentType`**: 内容类型枚举 (`'text' | 'image' | 'link' | 'code'`)
-- **`TimeMode`**: 时间过滤模式 (`'all' | 'year' | 'month' | 'week'`)
-- **`ClipboardItem`**: 剪贴板项接口
-  - `id`: 唯一标识符
-  - `type`: 内容类型
-  - `content`: 文本内容或 base64 图片数据
-  - `description`: AI 生成的图片描述（仅图片类型）
-  - `timestamp`: 时间戳
-  - `tags`: AI 生成的标签数组
-  - `isFavorite`: 是否已收藏
-- **`AppState`**: 应用状态接口
+**关键模块**：
+- **ClipboardManager**: 监听系统剪贴板变化，通过 IPC 发送到渲染进程
+- **TrayManager**: 系统托盘图标，点击显示/隐藏窗口
+- **ShortcutsManager**: 全局快捷键注册（默认 `Ctrl+Shift+V`）
+- **SecureConfigStore**: 使用 Node.js crypto 加密存储 API Key
 
-### 应用架构
+### 前端架构要点
 
-**单文件架构**：主要应用逻辑集中在 [App.tsx](App.tsx) 中，采用 React Hooks 进行状态管理。
+**单文件状态管理**：
+- `App.tsx` 包含完整的业务逻辑和状态管理（~650 行）
+- 使用 React Hooks（useState, useEffect, useRef, useMemo）
+- localStorage 持久化剪贴板历史
 
-**组件拆分**：
-- **`ClipboardCard`** ([components/ClipboardCard.tsx](components/ClipboardCard.tsx))：负责单个剪贴板项的渲染，包含类型图标、内容展示、标签和操作按钮
+**关键功能实现**：
+- **版本号显示**: Web 模式通过 `fetch('/package.json')` 动态读取，Electron 模式通过 `window.electronAPI.getVersion()` 获取
+- **剪贴板监听**: 通过 `window.electronAPI.onClipboardChange()` 监听主进程剪贴板事件
+- **AI 索引**: 图片上传到 Gemini API 获取描述，文本自动生成标签
+- **时间过滤**: 支持按年/月/周 + 具体值进行过滤
 
-**服务层**：
-- **`geminiService`** ([services/geminiService.ts](services/geminiService.ts))：
-  - `analyzeImage()`: 使用 Gemini 3 Flash Preview 分析图片，返回描述和标签
-  - `suggestTags()`: 为文本内容生成智能标签
+**类型系统**：
+- 核心类型定义在 `src/types.ts`
+- 使用 `export type` 重新导出以保持向后兼容
+- ContentType: `'text' | 'image' | 'link' | 'code'`
 
-### 状态管理
+## 重要配置文件
 
-应用使用 React 内置状态管理：
-- `useState`: 管理剪贴板项目、搜索查询、过滤器等状态
-- `useEffect`: 处理剪贴板监听、localStorage 持久化
-- `useRef`: 管理 DOM 引用和滚动状态
+### electron-builder.json
+- 打包配置（DEB + AppImage）
+- 启用 asar 压缩和 maximum 压缩级别
+- 通过 `bundledDependencies` 明确指定生产依赖
 
-### 样式系统
+### vite.config.ts
+- 开发服务器端口：3000
+- 路径别名：`@` 指向根目录
+- 代码分割：React 和 lucide-react 分离打包
+- define 注入：`__APP_VERSION__`, `process.env.API_KEY`
 
-- **框架**: Tailwind CSS（通过 CDN 在 `index.html` 中引入）
-- **设计风格**: Glassmorphism（磨砂玻璃效果）
-- **特点**:
-  - 大量使用透明度和半透明背景
-  - 使用 `bg-white/5`、`bg-white/[0.03]` 等透明度类
-  - 渐变边框和阴影效果
-  - 悬停动画和过渡效果
+### .gitignore
+- `token/` - 敏感文件
+- `dev_logs/` - 开发日志
+- `.attic/` - 旧文件归档
+- 标准忽略：node_modules, dist, release 等
 
-### 路径别名
+## 打包优化
 
-项目配置了 `@` 别名指向根目录：
-- 可在代码中使用 `@/` 引用根目录文件
-- 在 `vite.config.ts` 和 `tsconfig.json` 中均有配置
+当前配置已优化体积：
+- **DEB**: 75M → 预期 ~50-60M
+- **AppImage**: 113M → 预期 ~80-90M
 
-## 关键特性实现
+优化措施：
+1. `bundledDependencies` - 只打包必需的生产依赖
+2. `compression: "maximum"` - 最大压缩
+3. `asar: true` - 启用 asar 打包
+4. 代码分割 - React、Icons 分离
+5. `.npmignore` - 排除开发文件
 
-### 剪贴板监听
+## 开发规范
 
-应用使用 `navigator.clipboard.readText()` API 监听剪贴板变化。需要用户授权 `clipboard-read` 权限。
+### 改动记录管理
+**所有改动记录必须放在 `dev_logs/` 目录下**：
+- `DEV_LOG.md` - 开发改动记录
+- `CONVERSATION_LOG.md` - 对话记录
+- ❌ 不要在 `docs/` 或其他位置创建改动记录文档
 
-### AI 集成
+### 版本号管理
+- `package.json` 中的 `version` 是唯一真实来源
+- `app.getVersion()` (Electron) 和 `fetch('/package.json')` (Web) 动态读取
+- Vite 的 `__APP_VERSION__` 仅作为 fallback
 
-- **图像识别**: 自动检测图片内容并生成描述
-- **智能标签**: 根据内容类型（代码、链接、文本）自动生成相关标签
-- **语义搜索**: 支持自然语言搜索历史记录
+### 路径引用
+- 使用 `@/` 别名引用根目录文件
+- 优先使用相对路径而非绝对路径
+- Electron 中使用 `getBasePath()` 获取运行时路径
 
-### 内容类型检测
+## 环境变量
 
-应用自动识别内容类型：
-- **图片**: 通过数据 URL 格式检测
-- **链接**: 通过 URL 正则表达式检测
-- **代码**: 通过代码格式特征检测
-- **文本**: 默认类型
+**Google Gemini API Key**:
+- 开发环境：创建 `.env.local` 设置 `GEMINI_API_KEY`
+- Electron 环境：通过应用设置面板配置，使用安全存储加密保存
+- 通过 `vite.config.ts` 注入为 `process.env.GEMINI_API_KEY`
 
-### 数据持久化
+## 常见问题排查
 
-使用 `localStorage` 存储剪贴板历史：
-- 键名: `clipboardHistory`
-- JSON 序列化存储
-- 包含完整的 `ClipboardItem` 数组
+查看 `docs/Repair.md` 获取完整的问题排查指南。
 
-## 技术栈版本
+## 相关文档
 
-- React: 19.2.3
-- TypeScript: 5.8.2
-- Vite: 6.2.0
-- @google/genai: 1.34.0
-- Lucide React: 0.562.0
+| 文档 | 用途 |
+|------|------|
+| [DEVELOPMENT.md](DEVELOPMENT.md) | 完整开发和发布流程 |
+| [Build.md](Build.md) | 版本构建历史 |
+| [Repair.md](Repair.md) | 问题排查指南 |
+| [AUTO_RELEASE_GUIDE.md](AUTO_RELEASE_GUIDE.md) | 自动化发布流程 |
+
+---
+
+*最后更新：2026-01-30*
+*版本：v0.4.4*
