@@ -1,7 +1,8 @@
 {
   "name": "linux-clipboard",
   "private": true,
-  "version": "0.4.4",
+  "version": "0.4.5",
+  "author": "Linux-Clipboard <admin@linuxclipboard.app>",
   "description": "AI-powered clipboard manager with system tray support",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -14,6 +15,9 @@
     "electron:build:deb": "npm run build && electron-builder --linux deb",
     "electron:build:appimage": "npm run build && electron-builder --linux AppImage",
     "electron:build:all": "npm run build && electron-builder --linux deb --linux AppImage",
+    "electron:build:deb:progress": "bash scripts/build-with-progress.sh deb",
+    "electron:build:appimage:progress": "bash scripts/build-with-progress.sh appimage",
+    "electron:build:all:progress": "bash scripts/build-with-progress.sh all",
     "release": "node scripts/release.js"
   },
   "dependencies": {
@@ -33,5 +37,12 @@
     "vite": "^6.2.0",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6"
-  }
+  },
+  "bundledDependencies": [
+    "@google/genai",
+    "electron-store",
+    "lucide-react",
+    "react",
+    "react-dom"
+  ]
 }
