@@ -1,7 +1,7 @@
 {
   "name": "linux-clipboard",
   "private": true,
-  "version": "0.4.5",
+  "version": "0.4.6",
   "author": "Linux-Clipboard <admin@linuxclipboard.app>",
   "description": "AI-powered clipboard manager with system tray support",
   "main": "dist-electron/main.js",
