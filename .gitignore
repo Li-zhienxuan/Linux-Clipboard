@@ -40,7 +40,6 @@ token/
 .github-token
 .github-token-local
 .cnb-token
-.cnb.yml
 .git-credentials
 *.token
 
